@@ -30,3 +30,10 @@ require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-wp-cospend-error-handler.ph
 // Initialize the plugin.
 $wp_cospend = new WPCospend();
 $wp_cospend->init();
+
+// Activation hook
+register_activation_hook(__FILE__, 'wp_cospend_activate');
+
+function wp_cospend_activate() {
+  WPCospend_DB::create_tables();
+}
