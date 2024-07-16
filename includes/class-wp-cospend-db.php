@@ -109,6 +109,23 @@ class WPCospend_DB {
     }
 
     /**
+     * Get all members.
+     *
+     * @return array|WP_Error An array of member objects on success, or WP_Error on failure.
+     */
+    public function get_all_members() {
+        global $wpdb;
+
+        $members = $wpdb->get_results("SELECT * FROM $this->table_members");
+
+        if (null === $members) {
+            return new WP_Error('members_not_found', 'No members found', array('status' => 404));
+        }
+
+        return $members;
+    }
+
+    /**
      * Check if a member with the given wp_user_id exists.
      *
      * @param int $wp_user_id The wp_user_id to check.

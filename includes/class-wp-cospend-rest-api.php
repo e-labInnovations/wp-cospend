@@ -47,33 +47,16 @@ class WPCospend_REST_API {
   }
 
   public function get_members(WP_REST_Request $request) {
-    // Dummy user data
-    $members = array(
-      array(
-        'id' => 1,
-        'display_name' => 'John Doe',
-        'user_email' => 'john.doe@example.com',
-        'wp_user_id' => 101,
-        'picture_id' => 1001,
-      ),
-      array(
-        'id' => 2,
-        'display_name' => 'Jane Smith',
-        'user_email' => 'jane.smith@example.com',
-        'wp_user_id' => 102,
-        'picture_id' => 1002,
-      ),
-      array(
-        'id' => 3,
-        'display_name' => 'Alice Johnson',
-        'user_email' => 'alice.johnson@example.com',
-        'wp_user_id' => null,
-        'picture_id' => null,
-      )
-    );
+    $members = $this->db->get_all_members();
 
-    // Return the response
-    return new WP_REST_Response($members, 200);
+    if (is_wp_error($members)) {
+      return $members;
+    }
+
+    return rest_ensure_response(array(
+      'success' => true,
+      'data' => $members
+    ));
   }
 
   public function get_current_user($request) {
