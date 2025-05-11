@@ -3,7 +3,7 @@ import { GroupDetails } from "@/components/groups/group-details";
 import { Button } from "@/components/ui/button";
 import { Edit } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import PageLayout from "../../page-layout";
+import PageLayout from "../page-layout";
 
 export default function GroupPage() {
   const { id } = useParams();
