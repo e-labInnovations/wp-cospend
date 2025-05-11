@@ -26,33 +26,37 @@ import EditPerson from "@/pages/people/[id]/edit/page";
 import AddPerson from "@/pages/people/add/page";
 import AddGroup from "@/pages/groups/add/page";
 import EditGroup from "@/pages/groups/[id]/edit/page";
+import LoginPage from "@/pages/login/page";
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route element={<Layout />}>
-      <Route index element={<Home />} />
-      <Route path="transactions" element={<Transactions />} />
-      <Route path="transactions/:id" element={<Transaction />} />
-      <Route path="transactions/:id/edit" element={<EditTransaction />} />
-      <Route path="add-transaction" element={<AddTransaction />} />
-      <Route path="groups" element={<Groups />} />
-      <Route path="groups/add" element={<AddGroup />} />
-      <Route path="groups/:id" element={<Group />} />
-      <Route path="groups/:id/edit" element={<EditGroup />} />
-      <Route path="people" element={<Groups />} />
-      <Route path="people/add" element={<AddPerson />} />
-      <Route path="people/:id" element={<Person />} />
-      <Route path="people/:id/edit" element={<EditPerson />} />
-      <Route path="extra" element={<Extra />} />
-      <Route path="categories" element={<Categories />} />
-      <Route path="categories/add" element={<AddCategory />} />
-      <Route path="tags" element={<Tags />} />
-      <Route path="tags/add" element={<AddTag />} />
-      <Route path="currencies" element={<Currencies />} />
-      <Route path="accounts" element={<Accounts />} />
-      <Route path="accounts/add" element={<AddAccount />} />
-      <Route path="settings" element={<Settings />} />
-      <Route path="settings/profile" element={<Profile />} />
-    </Route>
+    <>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<Layout />}>
+        <Route index element={<Home />} />
+        <Route path="transactions" element={<Transactions />} />
+        <Route path="transactions/:id" element={<Transaction />} />
+        <Route path="transactions/:id/edit" element={<EditTransaction />} />
+        <Route path="add-transaction" element={<AddTransaction />} />
+        <Route path="groups" element={<Groups />} />
+        <Route path="groups/add" element={<AddGroup />} />
+        <Route path="groups/:id" element={<Group />} />
+        <Route path="groups/:id/edit" element={<EditGroup />} />
+        <Route path="people" element={<Groups />} />
+        <Route path="people/add" element={<AddPerson />} />
+        <Route path="people/:id" element={<Person />} />
+        <Route path="people/:id/edit" element={<EditPerson />} />
+        <Route path="extra" element={<Extra />} />
+        <Route path="categories" element={<Categories />} />
+        <Route path="categories/add" element={<AddCategory />} />
+        <Route path="tags" element={<Tags />} />
+        <Route path="tags/add" element={<AddTag />} />
+        <Route path="currencies" element={<Currencies />} />
+        <Route path="accounts" element={<Accounts />} />
+        <Route path="accounts/add" element={<AddAccount />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="settings/profile" element={<Profile />} />
+      </Route>
+    </>
   )
 );

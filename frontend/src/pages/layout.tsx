@@ -1,4 +1,3 @@
-import type React from "react";
 import { TabNavigation } from "@/components/tab-navigation";
 import { Outlet } from "react-router-dom";
 
