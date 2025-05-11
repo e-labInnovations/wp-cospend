@@ -5,7 +5,7 @@ import {
   useReducer,
   type PropsWithChildren,
 } from "react";
-import { type User } from "@/services/api/auth";
+import { type User, authService } from "@/services/api/auth";
 
 interface AuthContextType {
   user: User | null;
@@ -70,29 +70,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const token = localStorage.getItem("token");
     if (token) {
       const fetchUserData = async () => {
-        const response = await fetch(
-          "http://localhost:8000/wp-json/wp/v2/users/me",
-          {
-            headers: {
-              Authorization: `Basic ${token}`,
-            },
-            body: JSON.stringify({
-              context: "edit",
-            }),
-          }
-        );
-        const userData = await response.json();
-        if (response.ok) {
+        try {
+          const userData = await authService.getMe();
           dispatch({
             type: "SIGN_IN",
             payload: { user: userData, token: token },
           });
-        } else {
+        } catch {
           dispatch({ type: "SIGN_OUT" });
+        } finally {
+          dispatch({ type: "SET_LOADING", payload: { loading: false } });
         }
-        dispatch({ type: "SET_LOADING", payload: { loading: false } });
       };
       fetchUserData();
+    } else {
+      dispatch({ type: "SET_LOADING", payload: { loading: false } });
     }
   }, []);
 

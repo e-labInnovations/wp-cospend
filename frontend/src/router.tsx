@@ -27,12 +27,19 @@ import AddPerson from "@/pages/person/add-person-page";
 import AddGroup from "@/pages/groups/add-group-page";
 import EditGroup from "@/pages/groups/edit-group-page";
 import LoginPage from "@/pages/login/login-page";
+import { ProtectedRoute } from "@/components/protected-route";
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
     <>
       <Route path="/login" element={<LoginPage />} />
-      <Route element={<Layout />}>
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<Home />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="transactions/:id" element={<Transaction />} />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -32,6 +32,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { signIn } = useAuth();
 
@@ -46,7 +47,9 @@ export default function LoginPage() {
         description: "You have been logged in successfully.",
       });
 
-      navigate("/");
+      // Redirect to the page they tried to visit or home
+      const from = location.state?.from?.pathname || "/";
+      navigate(from, { replace: true });
     } catch {
       toast({
         title: "Error",
