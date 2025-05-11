@@ -4,7 +4,7 @@ import {
   Route,
 } from "react-router-dom";
 import Layout from "@/pages/layout";
-import Home from "@/pages/page";
+import Home from "@/pages/home-page";
 import Accounts from "@/pages/accounts/accounts-page";
 import AddTransaction from "@/pages/transactions/add-transaction-page";
 import Categories from "@/pages/categories/categories-page";
@@ -27,7 +27,7 @@ import AddPerson from "@/pages/person/add-person-page";
 import AddGroup from "@/pages/groups/add-group-page";
 import EditGroup from "@/pages/groups/edit-group-page";
 import LoginPage from "@/pages/login/login-page";
-import { ProtectedRoute } from "@/components/protected-route";
+import ProtectedRoute from "@/components/protected-route";
 
 export const router = createBrowserRouter(
   createRoutesFromElements(

@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { motion } from "framer-motion";
+import DayExpenseBar from "./day-expense-bar";
 
 // Mock data - would come from API in real app
 const weeklyExpenses = [
@@ -21,33 +21,17 @@ export function ExpensesThisWeekSection() {
         <CardTitle className="text-lg">Expenses This Week</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex justify-between items-end h-40 pt-4">
+        <div className="flex justify-center space-x-4 mb-4">
           {weeklyExpenses.map((day) => {
             const barHeight = (day.amount / maxAmount) * 100;
 
             return (
-              <div key={day.day} className="flex flex-col items-center">
-                {/* <div className="relative h-full w-8 flex items-end mb-2">
-                    <motion.div
-                      className="w-full bg-primary rounded-t-md"
-                      initial={{ height: 0 }}
-                      animate={{ height: `${barHeight}%` }}
-                      transition={{ delay: index * 0.1, duration: 0.5 }}
-                    />
-                  </div> */}
-                <div className="mb-5 flex flex-col items-center">
-                  <div className="h-24 w-4 overflow-hidden rounded-md bg-red-700">
-                    <div
-                      className="h-full bg-white"
-                      style={{ height: `${barHeight}%` }}
-                    ></div>
-                  </div>
-                </div>
-                <div className="text-xs font-medium">{day.day}</div>
-                <div className="text-xs text-muted-foreground">
-                  ${day.amount}
-                </div>
-              </div>
+              <DayExpenseBar
+                percentage={barHeight}
+                day={day.day}
+                amount={`$${day.amount}`}
+                progressColor="bg-red-500"
+              />
             );
           })}
         </div>
