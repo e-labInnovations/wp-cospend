@@ -60,7 +60,7 @@ export function GroupsList() {
     : "groups";
 
   const handleTabChange = (value: string) => {
-    navigate(value === "people" ? "/people" : "/groups");
+    navigate(value === "people" ? "/people" : "/groups", { replace: true });
   };
 
   return (

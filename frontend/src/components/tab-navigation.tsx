@@ -36,11 +36,13 @@ export function TabNavigation({ className }: TabNavigationProps) {
     {
       name: "Groups",
       href: "/groups",
+      alternatePaths: ["/people"],
       icon: Users,
     },
     {
       name: "Extra",
       href: "/extra",
+      alternatePaths: ["/categories", "/tags", "/accounts", "/currencies"],
       icon: MoreHorizontal,
     },
     {
@@ -62,7 +64,10 @@ export function TabNavigation({ className }: TabNavigationProps) {
           const isActive =
             tab.href === "/"
               ? location.pathname === "/"
-              : location.pathname.startsWith(tab.href);
+              : location.pathname.startsWith(tab.href) ||
+                tab.alternatePaths?.some((path) =>
+                  location.pathname.startsWith(path)
+                );
 
           return (
             <Link

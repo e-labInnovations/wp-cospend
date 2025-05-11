@@ -4,7 +4,7 @@ import PageLayout from "@/pages/page-layout";
 
 const headerProps: PageHeaderProps = {
   title: "Add Person",
-  backLink: "/groups",
+  backLink: "/people",
 };
 
 export default function AddPersonPage() {

@@ -10,7 +10,7 @@ export default function PersonPage() {
 
   const headerProps: PageHeaderProps = {
     title: "Person Details",
-    backLink: "/groups",
+    backLink: "/people",
     actions: (
       <Button variant="ghost" size="icon" asChild>
         <Link to={`/people/${id}/edit`}>
