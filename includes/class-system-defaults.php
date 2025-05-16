@@ -300,7 +300,7 @@ class System_Defaults {
   );
 
   /**
-   * Create default categories and tags.
+   * Create system default categories and tags.
    */
   public static function create_defaults() {
     self::create_default_categories();
@@ -308,14 +308,127 @@ class System_Defaults {
   }
 
   /**
-   * Create default categories.
+   * Create default categories with parent-child relationships.
    */
   private static function create_default_categories() {
     global $wpdb;
     $categories_table = $wpdb->prefix . 'cospend_categories';
     $images_table = $wpdb->prefix . 'cospend_images';
 
-    foreach (self::DEFAULT_CATEGORIES as $category) {
+    $default_categories = array(
+      array(
+        'name' => __('Food & Dining', 'wp-cospend'),
+        'color' => '#FF6B6B',
+        'icon' => 'utensils',
+        'children' => array(
+          array(
+            'name' => __('Dining Out', 'wp-cospend'),
+            'color' => '#FF8E8E',
+            'icon' => 'utensils',
+          ),
+          array(
+            'name' => __('Groceries', 'wp-cospend'),
+            'color' => '#FF8E8E',
+            'icon' => 'shopping-basket',
+          ),
+          array(
+            'name' => __('Coffee & Snacks', 'wp-cospend'),
+            'color' => '#FF8E8E',
+            'icon' => 'coffee',
+          ),
+        ),
+      ),
+      array(
+        'name' => __('Transportation', 'wp-cospend'),
+        'color' => '#45B7D1',
+        'icon' => 'car',
+        'children' => array(
+          array(
+            'name' => __('Fuel', 'wp-cospend'),
+            'color' => '#67C5DB',
+            'icon' => 'fuel',
+          ),
+          array(
+            'name' => __('Public Transit', 'wp-cospend'),
+            'color' => '#67C5DB',
+            'icon' => 'bus',
+          ),
+          array(
+            'name' => __('Maintenance', 'wp-cospend'),
+            'color' => '#67C5DB',
+            'icon' => 'wrench',
+          ),
+        ),
+      ),
+      array(
+        'name' => __('Housing', 'wp-cospend'),
+        'color' => '#96CEB4',
+        'icon' => 'home',
+        'children' => array(
+          array(
+            'name' => __('Rent', 'wp-cospend'),
+            'color' => '#B1D9C3',
+            'icon' => 'key',
+          ),
+          array(
+            'name' => __('Mortgage', 'wp-cospend'),
+            'color' => '#B1D9C3',
+            'icon' => 'home',
+          ),
+          array(
+            'name' => __('Maintenance', 'wp-cospend'),
+            'color' => '#B1D9C3',
+            'icon' => 'hammer',
+          ),
+        ),
+      ),
+      array(
+        'name' => __('Utilities', 'wp-cospend'),
+        'color' => '#FFEEAD',
+        'icon' => 'zap',
+        'children' => array(
+          array(
+            'name' => __('Electricity', 'wp-cospend'),
+            'color' => '#FFF0C0',
+            'icon' => 'zap',
+          ),
+          array(
+            'name' => __('Water', 'wp-cospend'),
+            'color' => '#FFF0C0',
+            'icon' => 'droplet',
+          ),
+          array(
+            'name' => __('Internet', 'wp-cospend'),
+            'color' => '#FFF0C0',
+            'icon' => 'wifi',
+          ),
+        ),
+      ),
+      array(
+        'name' => __('Entertainment', 'wp-cospend'),
+        'color' => '#D4A5A5',
+        'icon' => 'film',
+        'children' => array(
+          array(
+            'name' => __('Movies', 'wp-cospend'),
+            'color' => '#E5BDBD',
+            'icon' => 'film',
+          ),
+          array(
+            'name' => __('Games', 'wp-cospend'),
+            'color' => '#E5BDBD',
+            'icon' => 'gamepad-2',
+          ),
+          array(
+            'name' => __('Music', 'wp-cospend'),
+            'color' => '#E5BDBD',
+            'icon' => 'music',
+          ),
+        ),
+      ),
+    );
+
+    foreach ($default_categories as $category) {
       // Check if parent category already exists
       $existing_parent = $wpdb->get_var($wpdb->prepare(
         "SELECT id FROM $categories_table WHERE name = %s AND created_by = %d AND parent_id IS NULL",
@@ -406,14 +519,42 @@ class System_Defaults {
   }
 
   /**
-   * Create default tags.
+   * Create default tags with icons.
    */
   private static function create_default_tags() {
     global $wpdb;
     $tags_table = $wpdb->prefix . 'cospend_tags';
     $images_table = $wpdb->prefix . 'cospend_images';
 
-    foreach (self::DEFAULT_TAGS as $tag) {
+    $default_tags = array(
+      array(
+        'name' => __('Regular', 'wp-cospend'),
+        'color' => '#808080',
+        'icon' => 'circle',
+      ),
+      array(
+        'name' => __('Urgent', 'wp-cospend'),
+        'color' => '#FF0000',
+        'icon' => 'alert-circle',
+      ),
+      array(
+        'name' => __('Important', 'wp-cospend'),
+        'color' => '#FFA500',
+        'icon' => 'star',
+      ),
+      array(
+        'name' => __('Recurring', 'wp-cospend'),
+        'color' => '#3498DB',
+        'icon' => 'repeat',
+      ),
+      array(
+        'name' => __('Personal', 'wp-cospend'),
+        'color' => '#2ECC71',
+        'icon' => 'user',
+      ),
+    );
+
+    foreach ($default_tags as $tag) {
       // Check if tag already exists
       $existing = $wpdb->get_var($wpdb->prepare(
         "SELECT id FROM $tags_table WHERE name = %s AND created_by = %d",

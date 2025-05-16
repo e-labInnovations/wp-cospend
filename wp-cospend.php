@@ -64,6 +64,10 @@ function wp_cospend_init() {
   require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-member-manager.php';
   WPCospend\Member_Manager::init();
 
+  // Initialize image manager
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
+  WPCospend\Image_Manager::init();
+
   // Initialize REST API
   add_action('rest_api_init', 'wp_cospend_register_rest_routes');
 }

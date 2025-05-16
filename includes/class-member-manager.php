@@ -7,63 +7,110 @@ class Member_Manager {
    * Initialize the member manager.
    */
   public static function init() {
-    // Hook into user registration only
+    // Add hooks for member management
     add_action('user_register', array(__CLASS__, 'create_member_for_user'));
+    add_action('delete_user', array(__CLASS__, 'delete_member_for_user'));
   }
 
   /**
-   * Create members for all existing WordPress users.
-   * Called during plugin activation.
-   */
-  public static function create_members_for_existing_users() {
-    $users = get_users(array('fields' => array('ID', 'display_name')));
-
-    foreach ($users as $user) {
-      self::create_member_for_user($user->ID);
-    }
-  }
-
-  /**
-   * Create a member entry for a WordPress user.
+   * Create a member for a new WordPress user.
    *
-   * @param int $user_id WordPress user ID
-   * @return int|false The member ID if created, false otherwise
+   * @param int $user_id The WordPress user ID
    */
   public static function create_member_for_user($user_id) {
+    $user = get_userdata($user_id);
+    if (!$user) {
+      return;
+    }
+
     global $wpdb;
     $table_name = $wpdb->prefix . 'cospend_members';
 
-    // Check if member already exists for this user
-    $existing_member = $wpdb->get_row($wpdb->prepare(
-      "SELECT id FROM $table_name WHERE wp_user_id = %d AND created_by = %d",
-      $user_id,
+    // Check if member already exists
+    $existing = $wpdb->get_var($wpdb->prepare(
+      "SELECT id FROM $table_name WHERE wp_user_id = %d",
       $user_id
     ));
 
-    if ($existing_member) {
-      return $existing_member->id;
+    if ($existing) {
+      return;
     }
 
-    // Get user data
-    $user = get_userdata($user_id);
-    if (!$user) {
-      return false;
-    }
-
-    // Insert new member
-    $result = $wpdb->insert(
+    // Create new member with the same user ID for both wp_user_id and created_by
+    $wpdb->insert(
       $table_name,
       array(
         'wp_user_id' => $user_id,
         'name' => $user->display_name,
-        'created_by' => $user_id,
+        'created_by' => $user_id, // Use the same user ID
         'created_at' => current_time('mysql'),
         'updated_at' => current_time('mysql'),
       ),
       array('%d', '%s', '%d', '%s', '%s')
     );
 
-    return $result ? $wpdb->insert_id : false;
+    $member_id = $wpdb->insert_id;
+
+    // Add user avatar as member image
+    if ($member_id) {
+      $avatar_url = get_avatar_url($user_id, array('size' => 96));
+      if ($avatar_url) {
+        require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
+        Image_Manager::save_image('member', $member_id, 'url', $avatar_url, $user_id);
+      }
+    }
+  }
+
+  /**
+   * Delete a member when their WordPress user is deleted.
+   *
+   * @param int $user_id The WordPress user ID
+   */
+  public static function delete_member_for_user($user_id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_members';
+
+    // Check if member has any transactions
+    $transactions_table = $wpdb->prefix . 'cospend_transactions';
+    $splits_table = $wpdb->prefix . 'cospend_transaction_splits';
+
+    $has_transactions = $wpdb->get_var($wpdb->prepare(
+      "SELECT COUNT(*) FROM $transactions_table WHERE payer_id = %d",
+      $user_id
+    ));
+
+    $has_splits = $wpdb->get_var($wpdb->prepare(
+      "SELECT COUNT(*) FROM $splits_table WHERE member_id = %d",
+      $user_id
+    ));
+
+    if ($has_transactions > 0 || $has_splits > 0) {
+      // Instead of deleting, just remove the WordPress user association
+      $wpdb->update(
+        $table_name,
+        array('wp_user_id' => null),
+        array('wp_user_id' => $user_id),
+        array('%d'),
+        array('%d')
+      );
+    } else {
+      // Safe to delete the member
+      $wpdb->delete(
+        $table_name,
+        array('wp_user_id' => $user_id),
+        array('%d')
+      );
+    }
+  }
+
+  /**
+   * Create members for all existing WordPress users.
+   */
+  public static function create_members_for_existing_users() {
+    $users = get_users();
+    foreach ($users as $user) {
+      self::create_member_for_user($user->ID);
+    }
   }
 
   /**
@@ -95,7 +142,18 @@ class Member_Manager {
       array('%d', '%s', '%d', '%s', '%s')
     );
 
-    return $result ? $wpdb->insert_id : false;
+    $member_id = $result ? $wpdb->insert_id : false;
+
+    // If member was created and has a WordPress user, add their avatar
+    if ($member_id && $wp_user_id) {
+      $avatar_url = get_avatar_url($wp_user_id, array('size' => 96));
+      if ($avatar_url) {
+        require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
+        Image_Manager::save_image('member', $member_id, 'url', $avatar_url, $created_by);
+      }
+    }
+
+    return $member_id;
   }
 
   /**
@@ -124,6 +182,15 @@ class Member_Manager {
       array('%d', '%s'),
       array('%d')
     );
+
+    if ($result !== false) {
+      // Add user avatar as member image
+      $avatar_url = get_avatar_url($wp_user_id, array('size' => 96));
+      if ($avatar_url) {
+        require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
+        Image_Manager::save_image('member', $member_id, 'url', $avatar_url, get_current_user_id());
+      }
+    }
 
     return $result !== false;
   }
@@ -161,5 +228,44 @@ class Member_Manager {
     ));
 
     return $users;
+  }
+
+  /**
+   * Get member avatar URL.
+   *
+   * @param int $member_id Member ID
+   * @return string|null Avatar URL or null if not found
+   */
+  public static function get_member_avatar($member_id) {
+    require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
+
+    // Try to get URL type first
+    /** @var object|null $image */
+    $image = Image_Manager::get_image('member', $member_id, 'url');
+    if ($image) {
+      return $image->content;
+    }
+
+    // If no URL, try to get icon type
+    /** @var object|null $image */
+    $image = Image_Manager::get_image('member', $member_id, 'icon');
+    if ($image) {
+      return $image->content;
+    }
+
+    return null;
+  }
+
+  /**
+   * Update member avatar.
+   *
+   * @param int $member_id Member ID
+   * @param string $avatar_url New avatar URL
+   * @param int $user_id User ID who is updating the avatar
+   * @return bool True if updated successfully, false otherwise
+   */
+  public static function update_member_avatar($member_id, $avatar_url, $user_id) {
+    require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
+    return Image_Manager::save_image('member', $member_id, 'url', $avatar_url, $user_id) !== false;
   }
 }

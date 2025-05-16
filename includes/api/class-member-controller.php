@@ -19,6 +19,33 @@ class Member_Controller extends WP_REST_Controller {
    * Register the routes for the objects of the controller.
    */
   public function register_routes() {
+    // Admin routes
+    register_rest_route(
+      $this->namespace,
+      '/admin/' . $this->rest_base,
+      array(
+        array(
+          'methods' => WP_REST_Server::READABLE,
+          'callback' => array($this, 'get_all_items'),
+          'permission_callback' => array($this, 'admin_permissions_check'),
+        ),
+      )
+    );
+
+    // Me route
+    register_rest_route(
+      $this->namespace,
+      '/' . $this->rest_base . '/me',
+      array(
+        array(
+          'methods' => WP_REST_Server::READABLE,
+          'callback' => array($this, 'get_me'),
+          'permission_callback' => array($this, 'get_items_permissions_check'),
+        ),
+      )
+    );
+
+    // Regular user routes
     register_rest_route(
       $this->namespace,
       '/' . $this->rest_base,
@@ -37,6 +64,7 @@ class Member_Controller extends WP_REST_Controller {
       )
     );
 
+    // Member routes
     register_rest_route(
       $this->namespace,
       '/' . $this->rest_base . '/(?P<id>[\d]+)',
@@ -74,13 +102,22 @@ class Member_Controller extends WP_REST_Controller {
   }
 
   /**
+   * Check if user is admin.
+   *
+   * @return bool
+   */
+  public function admin_permissions_check() {
+    return current_user_can('manage_options');
+  }
+
+  /**
    * Check if a given request has access to read members.
    *
    * @param WP_REST_Request $request Full data about the request.
    * @return WP_Error|bool
    */
   public function get_items_permissions_check($request) {
-    return current_user_can('manage_cospend');
+    return is_user_logged_in();
   }
 
   /**
@@ -90,7 +127,7 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|bool
    */
   public function create_item_permissions_check($request) {
-    return current_user_can('manage_cospend');
+    return is_user_logged_in();
   }
 
   /**
@@ -100,7 +137,28 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|bool
    */
   public function get_item_permissions_check($request) {
-    return current_user_can('manage_cospend');
+    if (!is_user_logged_in()) {
+      return false;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_members';
+    $id = $request->get_param('id');
+    $user_id = get_current_user_id();
+
+    // Admin can access any member
+    if (current_user_can('manage_options')) {
+      return true;
+    }
+
+    // Regular users can only access members they created
+    $member = $wpdb->get_row($wpdb->prepare(
+      "SELECT * FROM $table_name WHERE id = %d AND created_by = %d",
+      $id,
+      $user_id
+    ));
+
+    return $member !== null;
   }
 
   /**
@@ -110,7 +168,7 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|bool
    */
   public function update_item_permissions_check($request) {
-    return current_user_can('manage_cospend');
+    return $this->get_item_permissions_check($request);
   }
 
   /**
@@ -120,16 +178,46 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|bool
    */
   public function delete_item_permissions_check($request) {
-    return current_user_can('manage_cospend');
+    return $this->get_item_permissions_check($request);
   }
 
   /**
-   * Get a collection of members.
+   * Get current user's member info.
    *
    * @param WP_REST_Request $request Full data about the request.
    * @return WP_Error|WP_REST_Response
    */
-  public function get_items($request) {
+  public function get_me($request) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_members';
+    $user_id = get_current_user_id();
+
+    $member = $wpdb->get_row($wpdb->prepare(
+      "SELECT * FROM $table_name WHERE wp_user_id = %d",
+      $user_id
+    ));
+
+    if ($member === null) {
+      return new WP_Error(
+        'member_not_found',
+        __('Member not found.', 'wp-cospend'),
+        array('status' => 404)
+      );
+    }
+
+    // Add avatar to response
+    $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
+
+    return rest_ensure_response($member);
+  }
+
+  /**
+   * Get all members (admin only).
+   *
+   * @param WP_REST_Request $request Full data about the request.
+   * @return WP_Error|WP_REST_Response
+   */
+  public function get_all_items($request) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'cospend_members';
 
@@ -143,6 +231,43 @@ class Member_Controller extends WP_REST_Controller {
         __('Error fetching members.', 'wp-cospend'),
         array('status' => 500)
       );
+    }
+
+    // Add avatars to response
+    foreach ($members as $member) {
+      $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
+    }
+
+    return rest_ensure_response($members);
+  }
+
+  /**
+   * Get a collection of members created by the current user.
+   *
+   * @param WP_REST_Request $request Full data about the request.
+   * @return WP_Error|WP_REST_Response
+   */
+  public function get_items($request) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_members';
+    $user_id = get_current_user_id();
+
+    $members = $wpdb->get_results($wpdb->prepare(
+      "SELECT * FROM $table_name WHERE created_by = %d ORDER BY name ASC",
+      $user_id
+    ));
+
+    if ($members === null) {
+      return new WP_Error(
+        'db_error',
+        __('Error fetching members.', 'wp-cospend'),
+        array('status' => 500)
+      );
+    }
+
+    // Add avatars to response
+    foreach ($members as $member) {
+      $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
     }
 
     return rest_ensure_response($members);
@@ -171,6 +296,9 @@ class Member_Controller extends WP_REST_Controller {
         array('status' => 404)
       );
     }
+
+    // Add avatar to response
+    $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
 
     return rest_ensure_response($member);
   }

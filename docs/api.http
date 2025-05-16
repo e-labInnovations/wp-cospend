@@ -1,0 +1,52 @@
+# Variables (replace with your own values)
+@base_url = http://localhost:8000
+@username = testuser
+@password = mBqU EeIw 2aY6 Nxtm sTWu kOSc
+@admin_username = admin
+@admin_password = ufEK id77 GTpK fGdZ G1Zq 42E8
+
+
+# get me (wordpress user)
+GET {{base_url}}/wp-json/wp/v2/users/me?context=edit
+Authorization: Basic {{username}}:{{password}}
+
+###
+
+# get current cospend member
+GET {{base_url}}/wp-json/wp-cospend/v1/members/me
+Authorization: Basic {{username}}:{{password}}
+
+###
+
+# get all members (admin)
+GET {{base_url}}/wp-json/wp-cospend/v1/admin/members
+Authorization: Basic {{admin_username}}:{{admin_password}}
+
+###
+
+# get all members (user)
+GET {{base_url}}/wp-json/wp-cospend/v1/members
+Authorization: Basic {{username}}:{{password}}
+
+###
+
+# add member
+POST {{base_url}}/wp-json/wp-cospend/v1/members
+Authorization: Basic {{username}}:{{password}}
+content-type: application/json
+
+{
+  "name": "Test User 02"
+}
+
+###
+
+# update member
+POST {{base_url}}/wp-json/wp-cospend/v1/members/3
+Authorization: Basic {{username}}:{{password}}
+content-type: application/json
+
+{
+  "name": "Test User 02 - updated"
+}
+
