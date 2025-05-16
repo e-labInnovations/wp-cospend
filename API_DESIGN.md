@@ -13,6 +13,41 @@ WP-Cospend is a WordPress-based expense tracking application that allows users t
 
 ### Custom Tables
 
+#### wp_cospend_accounts
+
+```sql
+CREATE TABLE wp_cospend_accounts (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    wp_user_id BIGINT UNSIGNED NOT NULL,
+    default_currency VARCHAR(3) DEFAULT 'USD',
+    language VARCHAR(5) DEFAULT 'en',
+    timezone VARCHAR(50) DEFAULT 'UTC',
+    notification_preferences JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY unique_wp_user (wp_user_id),
+    FOREIGN KEY (wp_user_id) REFERENCES wp_users(ID)
+);
+```
+
+#### wp_cospend_avatars
+
+```sql
+CREATE TABLE wp_cospend_avatars (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    type ENUM('image', 'icon', 'svg') NOT NULL,
+    content TEXT NOT NULL,
+    category ENUM('system', 'custom') DEFAULT 'custom',
+    created_by BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    FOREIGN KEY (created_by) REFERENCES wp_users(ID)
+);
+```
+
 #### wp_cospend_groups
 
 ```sql
@@ -20,12 +55,13 @@ CREATE TABLE wp_cospend_groups (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    icon VARCHAR(50),
+    avatar_id BIGINT UNSIGNED,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     created_by BIGINT UNSIGNED NOT NULL,
     PRIMARY KEY (id),
-    FOREIGN KEY (created_by) REFERENCES wp_users(ID)
+    FOREIGN KEY (created_by) REFERENCES wp_users(ID),
+    FOREIGN KEY (avatar_id) REFERENCES wp_cospend_avatars(id)
 );
 ```
 
@@ -37,13 +73,14 @@ CREATE TABLE wp_cospend_members (
     group_id BIGINT UNSIGNED NOT NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255),
-    avatar_url VARCHAR(255),
+    avatar_id BIGINT UNSIGNED,
     wp_user_id BIGINT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     FOREIGN KEY (group_id) REFERENCES wp_cospend_groups(id),
-    FOREIGN KEY (wp_user_id) REFERENCES wp_users(ID)
+    FOREIGN KEY (wp_user_id) REFERENCES wp_users(ID),
+    FOREIGN KEY (avatar_id) REFERENCES wp_cospend_avatars(id)
 );
 ```
 
@@ -106,11 +143,46 @@ CREATE TABLE wp_cospend_transaction_splits (
 CREATE TABLE wp_cospend_categories (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
-    icon VARCHAR(50),
+    avatar_id BIGINT UNSIGNED,
     color VARCHAR(7),
+    is_system BOOLEAN DEFAULT FALSE,
     created_by BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    FOREIGN KEY (created_by) REFERENCES wp_users(ID)
+    FOREIGN KEY (created_by) REFERENCES wp_users(ID),
+    FOREIGN KEY (avatar_id) REFERENCES wp_cospend_avatars(id)
+);
+```
+
+#### wp_cospend_tags
+
+```sql
+CREATE TABLE wp_cospend_tags (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    avatar_id BIGINT UNSIGNED,
+    color VARCHAR(7),
+    is_system BOOLEAN DEFAULT FALSE,
+    created_by BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    FOREIGN KEY (created_by) REFERENCES wp_users(ID),
+    FOREIGN KEY (avatar_id) REFERENCES wp_cospend_avatars(id)
+);
+```
+
+#### wp_cospend_transaction_tags
+
+```sql
+CREATE TABLE wp_cospend_transaction_tags (
+    transaction_id BIGINT UNSIGNED NOT NULL,
+    tag_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (transaction_id, tag_id),
+    FOREIGN KEY (transaction_id) REFERENCES wp_cospend_transactions(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES wp_cospend_tags(id) ON DELETE RESTRICT
 );
 ```
 
@@ -264,9 +336,12 @@ interface TransactionSplit {
 interface Category {
   id: number;
   name: string;
-  icon: string;
+  avatar_id: number;
   color: string;
+  is_system: boolean;
   created_by: number;
+  created_at: string;
+  updated_at: string;
 }
 ```
 
@@ -278,6 +353,31 @@ interface Currency {
   symbol: string;
   name: string;
   is_default: boolean;
+}
+```
+
+### Tag
+
+```typescript
+interface Tag {
+  id: number;
+  name: string;
+  avatar_id: number;
+  color: string;
+  is_system: boolean;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+}
+```
+
+### TransactionTag
+
+```typescript
+interface TransactionTag {
+  transaction_id: number;
+  tag_id: number;
+  created_at: string;
 }
 ```
 
@@ -356,3 +456,33 @@ interface Currency {
 - **Display**: If linked, always show Alice's WP profile info; if not, show the info from the member table.
 - **Unlink member**: If needed, unlink a member from a WP user, reverting to the member table data.
 - **Set default currency**: User sets their preferred currency, which is stored in usermeta.
+
+## System Categories and Tags
+
+The application includes a set of predefined system categories and tags that are available to all users and cannot be deleted. These are marked with `is_system = true` in the database.
+
+### System Categories
+
+- Food & Dining
+- Transportation
+- Housing
+- Utilities
+- Entertainment
+- Shopping
+- Health & Medical
+- Education
+- Travel
+- Other
+
+### System Tags
+
+- Recurring
+- One-time
+- Urgent
+- Personal
+- Business
+- Shared
+- Reimbursable
+- Tax-deductible
+
+System categories and tags can be used by all users but cannot be modified or deleted. Users can create their own custom categories and tags by setting `is_system = false`.
