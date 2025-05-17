@@ -27,10 +27,10 @@ class Activator {
             id bigint(20) NOT NULL AUTO_INCREMENT,
             name varchar(255) NOT NULL,
             description text,
-            currency varchar(3) DEFAULT 'USD',
+            currency varchar(3) DEFAULT 'INR',
             created_by bigint(20) NOT NULL,
-            created_at datetime NOT NULL,
-            updated_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY created_by (created_by)
         ) $charset_collate;";
@@ -43,8 +43,8 @@ class Activator {
             wp_user_id bigint(20),
             name varchar(255) NOT NULL,
             created_by bigint(20) NOT NULL,
-            created_at datetime NOT NULL,
-            updated_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY wp_user_id (wp_user_id),
             KEY created_by (created_by)
@@ -59,8 +59,8 @@ class Activator {
             name varchar(255) NOT NULL,
             color varchar(7) DEFAULT '#000000',
             created_by bigint(20) NOT NULL,
-            created_at datetime NOT NULL,
-            updated_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY parent_id (parent_id),
             KEY created_by (created_by),
@@ -80,8 +80,8 @@ class Activator {
             date date NOT NULL,
             type enum('income', 'expense') NOT NULL,
             created_by bigint(20) NOT NULL,
-            created_at datetime NOT NULL,
-            updated_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY group_id (group_id),
             KEY payer_id (payer_id),
@@ -99,8 +99,8 @@ class Activator {
             member_id bigint(20) NOT NULL,
             amount decimal(10,2) NOT NULL,
             is_paid tinyint(1) NOT NULL DEFAULT 0,
-            created_at datetime NOT NULL,
-            updated_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY transaction_id (transaction_id),
             KEY member_id (member_id)
@@ -114,8 +114,8 @@ class Activator {
             transaction_id bigint(20) NOT NULL,
             meta_key varchar(255) NOT NULL,
             meta_value longtext,
-            created_at datetime NOT NULL,
-            updated_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (meta_id),
             KEY transaction_id (transaction_id),
             KEY meta_key (meta_key(191))
@@ -126,13 +126,13 @@ class Activator {
     $table_name = $wpdb->prefix . 'cospend_images';
     $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            entity_type enum('member', 'category', 'tag') NOT NULL,
+            entity_type enum('member', 'category', 'tag', 'group') NOT NULL,
             entity_id bigint(20) NOT NULL,
             type enum('url', 'icon', 'svg') NOT NULL,
             content text NOT NULL,
             created_by bigint(20) NOT NULL,
-            created_at datetime NOT NULL,
-            updated_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY entity_type (entity_type),
             KEY entity_id (entity_id),
@@ -147,8 +147,8 @@ class Activator {
             name varchar(255) NOT NULL,
             color varchar(7) DEFAULT '#000000',
             created_by bigint(20) NOT NULL,
-            created_at datetime NOT NULL,
-            updated_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY created_by (created_by)
         ) $charset_collate;";
@@ -159,9 +159,27 @@ class Activator {
     $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             transaction_id bigint(20) NOT NULL,
             tag_id bigint(20) NOT NULL,
-            created_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (transaction_id, tag_id),
             KEY tag_id (tag_id)
+        ) $charset_collate;";
+    dbDelta($sql);
+
+    // Group members table - many-to-many relationship between groups and members
+    $table_name = $wpdb->prefix . 'cospend_group_members';
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            group_id bigint(20) NOT NULL,
+            member_id bigint(20) NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            can_edit boolean NOT NULL DEFAULT false,
+            PRIMARY KEY  (id),
+            UNIQUE KEY group_member (group_id, member_id),
+            KEY group_id (group_id),
+            KEY member_id (member_id),
+            CONSTRAINT fk_group_member_group FOREIGN KEY (group_id) REFERENCES {$wpdb->prefix}cospend_groups(id) ON DELETE CASCADE,
+            CONSTRAINT fk_group_member_member FOREIGN KEY (member_id) REFERENCES {$wpdb->prefix}cospend_members(id) ON DELETE CASCADE
         ) $charset_collate;";
     dbDelta($sql);
   }

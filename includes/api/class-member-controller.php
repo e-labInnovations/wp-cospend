@@ -227,10 +227,10 @@ class Member_Controller extends WP_REST_Controller {
     }
 
     // Add avatar to response
-    $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
+    $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
 
     // Add WordPress user details if linked
-    $member->wp_user = \WPCospend\Member_Manager::get_member_wp_user($member->wp_user_id);
+    $member->wp_user = \WPCospend\Member_Manager::get_wp_user($member->wp_user_id);
 
     return rest_ensure_response($member);
   }
@@ -260,17 +260,11 @@ class Member_Controller extends WP_REST_Controller {
     // Add avatars and WordPress user details to response
     require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
     foreach ($members as $member) {
-      $avatar = \WPCospend\Image_Manager::get_image('member', $member->id, 'url');
-      if (!$avatar) {
-        $avatar = \WPCospend\Image_Manager::get_image('member', $member->id, 'icon');
-      }
-
-      if ($avatar) {
-        $member->avatar = $avatar;
-      }
+      // Add avatar to response
+      $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
 
       // Add WordPress user details if linked
-      $member->wp_user = \WPCospend\Member_Manager::get_member_wp_user($member->wp_user_id);
+      $member->wp_user = \WPCospend\Member_Manager::get_wp_user($member->wp_user_id);
     }
 
     return rest_ensure_response($members);
@@ -304,10 +298,10 @@ class Member_Controller extends WP_REST_Controller {
     require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
     foreach ($members as $member) {
       // Add avatar to response
-      $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
+      $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
 
       // Add WordPress user details if linked
-      $member->wp_user = \WPCospend\Member_Manager::get_member_wp_user($member->wp_user_id);
+      $member->wp_user = \WPCospend\Member_Manager::get_wp_user($member->wp_user_id);
     }
 
     return rest_ensure_response($members);
@@ -338,10 +332,10 @@ class Member_Controller extends WP_REST_Controller {
     }
 
     // Add avatar to response
-    $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
+    $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
 
     // Add WordPress user details if linked
-    $member->wp_user = \WPCospend\Member_Manager::get_member_wp_user($member->wp_user_id);
+    $member->wp_user = \WPCospend\Member_Manager::get_wp_user($member->wp_user_id);
 
     return rest_ensure_response($member);
   }
@@ -455,7 +449,7 @@ class Member_Controller extends WP_REST_Controller {
     ));
 
     // Add avatar to response
-    $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
+    $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
 
     return rest_ensure_response($member);
   }
@@ -575,7 +569,7 @@ class Member_Controller extends WP_REST_Controller {
     ));
 
     // Add avatar to response
-    $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
+    $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
 
     return rest_ensure_response($member);
   }
@@ -802,7 +796,7 @@ class Member_Controller extends WP_REST_Controller {
       );
     }
 
-    $user_data = \WPCospend\Member_Manager::get_member_wp_user($user->ID);
+    $user_data = \WPCospend\Member_Manager::get_wp_user($user->ID);
 
     return rest_ensure_response($user_data);
   }

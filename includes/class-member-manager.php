@@ -129,166 +129,16 @@ class Member_Manager {
   }
 
   /**
-   * Create a new member with optional WordPress user linking.
-   *
-   * @param string $name Member name/alias
-   * @param int $created_by User ID who created this member
-   * @param int|null $wp_user_id Optional WordPress user ID to link
-   * @return int|false The member ID if created, false otherwise
-   */
-  public static function create_member($name, $created_by, $wp_user_id = null) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_members';
-
-    // If wp_user_id is provided, verify it exists
-    if ($wp_user_id && !get_userdata($wp_user_id)) {
-      return false;
-    }
-
-    $result = $wpdb->insert(
-      $table_name,
-      array(
-        'wp_user_id' => $wp_user_id,
-        'name' => $name,
-        'created_by' => $created_by,
-        'created_at' => current_time('mysql'),
-        'updated_at' => current_time('mysql'),
-      ),
-      array('%d', '%s', '%d', '%s', '%s')
-    );
-
-    $member_id = $result ? $wpdb->insert_id : false;
-
-    // If member was created and has a WordPress user, add their avatar
-    if ($member_id && $wp_user_id) {
-      $avatar_url = get_avatar_url($wp_user_id, array('size' => 96));
-      if ($avatar_url) {
-        require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-        Image_Manager::save_image('member', $member_id, 'url', $avatar_url, $created_by);
-      }
-    }
-
-    return $member_id;
-  }
-
-  /**
-   * Link an existing member to a WordPress user.
-   *
-   * @param int $member_id Member ID to link
-   * @param int $wp_user_id WordPress user ID to link to
-   * @return bool True if linked successfully, false otherwise
-   */
-  public static function link_member_to_user($member_id, $wp_user_id) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_members';
-
-    // Verify user exists
-    if (!get_userdata($wp_user_id)) {
-      return false;
-    }
-
-    $result = $wpdb->update(
-      $table_name,
-      array(
-        'wp_user_id' => $wp_user_id,
-        'updated_at' => current_time('mysql'),
-      ),
-      array('id' => $member_id),
-      array('%d', '%s'),
-      array('%d')
-    );
-
-    if ($result !== false) {
-      // Add user avatar as member image
-      $avatar_url = get_avatar_url($wp_user_id, array('size' => 96));
-      if ($avatar_url) {
-        require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-        Image_Manager::save_image('member', $member_id, 'url', $avatar_url, get_current_user_id());
-      }
-    }
-
-    return $result !== false;
-  }
-
-  /**
-   * Get member display name for the current user.
-   *
-   * @param object $member Member object from database
-   * @return string Formatted display name
-   */
-  public static function get_member_display_name($member) {
-    $display_name = $member->name;
-
-    if ($member->wp_user_id) {
-      $user = get_userdata($member->wp_user_id);
-      if ($user) {
-        $display_name .= ' (' . $user->display_name . ')';
-      }
-    }
-
-    return $display_name;
-  }
-
-  /**
-   * Find members by email (for linking suggestions).
-   *
-   * @param string $email Email to search for
-   * @return array Array of matching WordPress users
-   */
-  public static function find_users_by_email($email) {
-    $users = get_users(array(
-      'search' => $email,
-      'search_columns' => array('user_email'),
-      'fields' => array('ID', 'display_name', 'user_email'),
-    ));
-
-    return $users;
-  }
-
-  /**
    * Get member avatar URL.
    *
    * @param int $member_id Member ID
    * @return string|null Avatar URL or null if not found
    */
-  public static function get_member_avatar($member_id) {
+  public static function get_avatar($member_id) {
     require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
 
-    $avatar_with_url = \WPCospend\Image_Manager::get_image('member', $member_id, 'url', false);
-    $avatar_with_icon = \WPCospend\Image_Manager::get_image('member', $member_id, 'icon', false);
-
-    // Check which one is available and return last
-    if ($avatar_with_url && $avatar_with_icon) {
-      $avatar_url_updated_at = $avatar_with_url["updated_at"];
-      $avatar_icon_updated_at = $avatar_with_icon["updated_at"];
-
-      $avatar = $avatar_url_updated_at > $avatar_icon_updated_at ? $avatar_with_url : $avatar_with_icon;
-    } else if ($avatar_with_url) {
-      $avatar = $avatar_with_url;
-    } else if ($avatar_with_icon) {
-      $avatar = $avatar_with_icon;
-    } else {
-      $avatar = null;
-    }
-
-    return $avatar ? array(
-      'id' => $avatar["id"],
-      'type' => $avatar["type"],
-      'content' => $avatar["content"],
-    ) : null;
-  }
-
-  /**
-   * Update member avatar.
-   *
-   * @param int $member_id Member ID
-   * @param string $avatar_url New avatar URL
-   * @param int $user_id User ID who is updating the avatar
-   * @return bool True if updated successfully, false otherwise
-   */
-  public static function update_member_avatar($member_id, $avatar_url, $user_id) {
-    require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-    return Image_Manager::save_image('member', $member_id, 'url', $avatar_url, $user_id) !== false;
+    $avatar = \WPCospend\Image_Manager::get_avatar($member_id, 'member');
+    return $avatar;
   }
 
   /**
@@ -297,7 +147,7 @@ class Member_Manager {
    * @param int $member_id Member ID
    * @return array|null Member WordPress user details or null if not found
    */
-  public static function get_member_wp_user($wp_user_id) {
+  public static function get_wp_user($wp_user_id) {
     if (!$wp_user_id) {
       return null;
     }
@@ -316,6 +166,25 @@ class Member_Manager {
         'avatar_url' => get_avatar_url($user->ID, array('size' => 96)),
         'default_currency' => get_user_meta($user->ID, 'cospend_default_currency', true) ?: 'INR'
       );
+    }
+
+    return null;
+  }
+
+  /**
+   * Get member by ID.
+   *
+   * @param int $member_id Member ID
+   * @return object|null Member details or null if not found
+   */
+  public static function get_member($member_id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_members';
+
+    $member = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $member_id));
+    if ($member) {
+      $member->avatar = self::get_avatar($member_id);
+      return $member;
     }
 
     return null;

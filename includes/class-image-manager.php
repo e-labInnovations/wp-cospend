@@ -440,6 +440,8 @@ class Image_Manager {
       if (is_wp_error($result)) {
         return $result;
       }
+
+      return $result;
     } else {
       $image_result = self::save_image(
         $entity_type,
@@ -456,6 +458,40 @@ class Image_Manager {
           array('status' => 500)
         );
       }
+
+      return $image_result;
     }
+  }
+
+  /**
+   * Get avatar URL.
+   *
+   * @param string $entity_id Entity ID
+   * @param string $entity_type Entity type
+   * @return string|null Avatar URL or null if not found
+   */
+  public static function get_avatar($entity_id, $entity_type) {
+    $avatar_with_url = self::get_image($entity_type, $entity_id, 'url', false);
+    $avatar_with_icon = self::get_image($entity_type, $entity_id, 'icon', false);
+
+    // Check which one is available and return last
+    if ($avatar_with_url && $avatar_with_icon) {
+      $avatar_url_updated_at = $avatar_with_url["updated_at"];
+      $avatar_icon_updated_at = $avatar_with_icon["updated_at"];
+
+      $avatar = $avatar_url_updated_at > $avatar_icon_updated_at ? $avatar_with_url : $avatar_with_icon;
+    } else if ($avatar_with_url) {
+      $avatar = $avatar_with_url;
+    } else if ($avatar_with_icon) {
+      $avatar = $avatar_with_icon;
+    } else {
+      $avatar = null;
+    }
+
+    return $avatar ? array(
+      'id' => $avatar["id"],
+      'type' => $avatar["type"],
+      'content' => $avatar["content"],
+    ) : null;
   }
 }

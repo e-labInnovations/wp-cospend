@@ -5,11 +5,6 @@
 @admin_username = admin
 @admin_password = ufEK id77 GTpK fGdZ G1Zq 42E8
 
-
-# get me (wordpress user)
-GET {{base_url}}/wp-json/wp/v2/users/me?context=edit
-Authorization: Basic {{username}}:{{password}}
-
 ###
 
 # get me; cospend profile
@@ -36,10 +31,32 @@ Authorization: Basic {{username}}:{{password}}
 content-type: application/json
 
 {
-  "name": "Test User 02",
+  "name": "Test User 001",
   "avatar_type": "icon",
   "avatar_content": "user"
 }
+
+###
+
+# add member (with avatar file upload)
+POST {{base_url}}/wp-json/wp-cospend/v1/members
+Authorization: Basic {{username}}:{{password}}
+content-type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="name"
+
+Test User 002
+------WebKitFormBoundary
+Content-Disposition: form-data; name="avatar_type"
+
+file
+------WebKitFormBoundary
+Content-Disposition: form-data; name="avatar_file"; filename="avatar01.png"
+Content-Type: image/png
+
+< docs/images/avatar01.png
+------WebKitFormBoundary--
 
 ###
 
@@ -99,4 +116,110 @@ content-type: application/json
 {
   "email": "admin@elabins.com"
 }
+
+###
+
+# delete member
+DELETE {{base_url}}/wp-json/wp-cospend/v1/members/9
+Authorization: Basic {{username}}:{{password}}
+
+###
+
+# get all groups (Admin)
+GET {{base_url}}/wp-json/wp-cospend/v1/admin/groups
+Authorization: Basic {{admin_username}}:{{admin_password}}
+
+###
+
+# get all groups (User)
+GET {{base_url}}/wp-json/wp-cospend/v1/groups
+Authorization: Basic {{username}}:{{password}}
+
+###
+
+# create group
+POST {{base_url}}/wp-json/wp-cospend/v1/groups
+Authorization: Basic {{username}}:{{password}}
+content-type: application/json
+
+{
+  "name": "Test Group 01",
+  "avatar_type": "icon",
+  "avatar_content": "group-icon"
+}
+
+###
+
+# create group (with avatar file upload)
+POST {{base_url}}/wp-json/wp-cospend/v1/groups
+Authorization: Basic {{username}}:{{password}}
+content-type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="name"
+
+Test Group 02
+------WebKitFormBoundary
+Content-Disposition: form-data; name="avatar_type"
+
+file
+------WebKitFormBoundary
+Content-Disposition: form-data; name="avatar_file"; filename="avatar01.png"
+Content-Type: image/png
+
+< docs/images/avatar01.png
+------WebKitFormBoundary--
+
+###
+
+# get group by id
+GET {{base_url}}/wp-json/wp-cospend/v1/groups/1
+Authorization: Basic {{username}}:{{password}}
+
+###
+
+# update group
+POST {{base_url}}/wp-json/wp-cospend/v1/groups/2
+Authorization: Basic {{username}}:{{password}}
+content-type: application/json
+
+{
+  "name": "Test Group 02 - updated"
+}
+
+### update group (with avatar file upload)
+POST {{base_url}}/wp-json/wp-cospend/v1/groups/2
+Authorization: Basic {{username}}:{{password}}
+content-type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="avatar_type"
+
+file
+------WebKitFormBoundary
+Content-Disposition: form-data; name="avatar_file"; filename="avatar01.png"
+Content-Type: image/png
+
+< docs/images/avatar01.png
+------WebKitFormBoundary--
+
+###
+
+# get group members
+GET {{base_url}}/wp-json/wp-cospend/v1/groups/1/members
+Authorization: Basic {{username}}:{{password}}
+
+###
+
+# add member to group
+POST {{base_url}}/wp-json/wp-cospend/v1/groups/1/members/3
+Authorization: Basic {{username}}:{{password}}
+content-type: application/json
+
+
+###
+
+# remove member from group
+DELETE {{base_url}}/wp-json/wp-cospend/v1/groups/1/members/3
+Authorization: Basic {{username}}:{{password}}
 
