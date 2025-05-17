@@ -57,6 +57,9 @@ class Member_Manager {
       if ($avatar_url) {
         require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
         Image_Manager::save_image('member', $member_id, 'url', $avatar_url, $user_id);
+      } else {
+        // If no avatar URL, use a default icon
+        Image_Manager::save_image('member', $member_id, 'icon', 'user', $user_id);
       }
     }
 
@@ -251,21 +254,28 @@ class Member_Manager {
   public static function get_member_avatar($member_id) {
     require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
 
-    // Try to get URL type first
-    /** @var object|null $image */
-    $image = Image_Manager::get_image('member', $member_id, 'url');
-    if ($image) {
-      return $image->content;
+    $avatar_with_url = \WPCospend\Image_Manager::get_image('member', $member_id, 'url', false);
+    $avatar_with_icon = \WPCospend\Image_Manager::get_image('member', $member_id, 'icon', false);
+
+    // Check which one is available and return last
+    if ($avatar_with_url && $avatar_with_icon) {
+      $avatar_url_updated_at = $avatar_with_url["updated_at"];
+      $avatar_icon_updated_at = $avatar_with_icon["updated_at"];
+
+      $avatar = $avatar_url_updated_at > $avatar_icon_updated_at ? $avatar_with_url : $avatar_with_icon;
+    } else if ($avatar_with_url) {
+      $avatar = $avatar_with_url;
+    } else if ($avatar_with_icon) {
+      $avatar = $avatar_with_icon;
+    } else {
+      $avatar = null;
     }
 
-    // If no URL, try to get icon type
-    /** @var object|null $image */
-    $image = Image_Manager::get_image('member', $member_id, 'icon');
-    if ($image) {
-      return $image->content;
-    }
-
-    return null;
+    return $avatar ? array(
+      'id' => $avatar["id"],
+      'type' => $avatar["type"],
+      'content' => $avatar["content"],
+    ) : null;
   }
 
   /**
@@ -279,5 +289,35 @@ class Member_Manager {
   public static function update_member_avatar($member_id, $avatar_url, $user_id) {
     require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
     return Image_Manager::save_image('member', $member_id, 'url', $avatar_url, $user_id) !== false;
+  }
+
+  /**
+   * Get member WordPress user details.
+   *
+   * @param int $member_id Member ID
+   * @return array|null Member WordPress user details or null if not found
+   */
+  public static function get_member_wp_user($wp_user_id) {
+    if (!$wp_user_id) {
+      return null;
+    }
+
+    $user = get_userdata($wp_user_id);
+    if ($user) {
+      return array(
+        'id' => $user->ID,
+        'username' => $user->user_login,
+        'email' => $user->user_email,
+        'display_name' => $user->display_name,
+        'first_name' => $user->first_name,
+        'last_name' => $user->last_name,
+        'nickname' => $user->nickname,
+        'roles' => $user->roles,
+        'avatar_url' => get_avatar_url($user->ID, array('size' => 96)),
+        'default_currency' => get_user_meta($user->ID, 'cospend_default_currency', true) ?: 'INR'
+      );
+    }
+
+    return null;
   }
 }

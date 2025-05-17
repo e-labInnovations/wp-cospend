@@ -36,7 +36,9 @@ Authorization: Basic {{username}}:{{password}}
 content-type: application/json
 
 {
-  "name": "Test User 02"
+  "name": "Test User 02",
+  "avatar_type": "icon",
+  "avatar_content": "user"
 }
 
 ###
@@ -47,7 +49,7 @@ Authorization: Basic {{username}}:{{password}}
 
 ###
 
-# update member
+# update member (only name)
 POST {{base_url}}/wp-json/wp-cospend/v1/members/3
 Authorization: Basic {{username}}:{{password}}
 content-type: application/json
@@ -55,4 +57,34 @@ content-type: application/json
 {
   "name": "Test User 02 - updated"
 }
+
+###
+
+# update member (only avatar)
+POST {{base_url}}/wp-json/wp-cospend/v1/members/3
+Authorization: Basic {{username}}:{{password}}
+content-type: application/json
+
+{
+  "avatar_type": "icon",
+  "avatar_content": "user"
+}
+
+###
+
+# update member (only avatar with file upload)
+POST {{base_url}}/wp-json/wp-cospend/v1/members/3
+Authorization: Basic {{username}}:{{password}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="avatar_type"
+
+file
+------WebKitFormBoundary
+Content-Disposition: form-data; name="avatar_file"; filename="avatar01.png"
+Content-Type: image/png
+
+< docs/images/avatar01.png
+------WebKitFormBoundary--
 
