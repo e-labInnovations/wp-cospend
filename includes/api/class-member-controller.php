@@ -371,26 +371,38 @@ class Member_Controller extends WP_REST_Controller {
       );
     }
 
-    if (empty($avatar_type) || empty($avatar_content)) {
+    // check if avatar_type is valid
+    if ($avatar_type !== null && !in_array($avatar_type, array('file', 'icon'))) {
       return new WP_Error(
-        'missing_avatar',
-        __('Avatar type and content are required.', 'wp-cospend'),
+        'invalid_avatar_type',
+        __('Avatar type must be either "file" or "icon".', 'wp-cospend'),
         array('status' => 400)
       );
     }
 
-    if (!in_array($avatar_type, array('url', 'icon'))) {
+    // check if avatar_content is valid for icon type
+    if ($avatar_type === 'icon' && empty($avatar_content)) {
       return new WP_Error(
-        'invalid_avatar_type',
-        __('Avatar type must be either "url" or "icon".', 'wp-cospend'),
+        'invalid_avatar_content',
+        __('Avatar content is required for icon type.', 'wp-cospend'),
+        array('status' => 400)
+      );
+    }
+
+    // check if avatar_content is valid for file type
+    if ($avatar_type === 'file' && !isset($_FILES['avatar_file'])) {
+      return new WP_Error(
+        'invalid_avatar_content',
+        __('Avatar file is required for file type.', 'wp-cospend'),
         array('status' => 400)
       );
     }
 
     // Check if member with same name already exists
     $existing = $wpdb->get_var($wpdb->prepare(
-      "SELECT id FROM $table_name WHERE name = %s",
-      $name
+      "SELECT id FROM $table_name WHERE name = %s AND created_by = %d",
+      $name,
+      get_current_user_id()
     ));
 
     if ($existing) {
@@ -424,24 +436,17 @@ class Member_Controller extends WP_REST_Controller {
 
     $member_id = $wpdb->insert_id;
 
-    // Save avatar
+    // Handle avatar
     require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-    $image_result = \WPCospend\Image_Manager::save_image(
-      'member',
-      $member_id,
+    $result = \WPCospend\Image_Manager::save_avatar(
       $avatar_type,
       $avatar_content,
-      get_current_user_id()
+      $member_id,
+      'member'
     );
 
-    if ($image_result === false) {
-      // Rollback member creation if avatar save fails
-      $wpdb->delete($table_name, array('id' => $member_id), array('%d'));
-      return new WP_Error(
-        'avatar_save_error',
-        __('Error saving member avatar.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    if (is_wp_error($result)) {
+      return $result;
     }
 
     $member = $wpdb->get_row($wpdb->prepare(
@@ -551,38 +556,16 @@ class Member_Controller extends WP_REST_Controller {
 
     // Update avatar if provided
     if ($avatar_type !== null && ($avatar_content !== null || isset($_FILES['avatar_file']))) {
-      if (!in_array($avatar_type, array('file', 'icon'))) {
-        return new WP_Error(
-          'invalid_avatar_type',
-          __('Avatar type must be either "file" or "icon".', 'wp-cospend'),
-          array('status' => 400)
-        );
-      }
-
       require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
+      $result = \WPCospend\Image_Manager::save_avatar(
+        $avatar_type,
+        $avatar_content,
+        $id,
+        'member'
+      );
 
-      // Handle file upload if avatar_file is provided
-      if (isset($_FILES['avatar_file'])) {
-        $result = \WPCospend\Image_Manager::handle_file_upload('member', $id, 'avatar_file', get_current_user_id());
-        if (is_wp_error($result)) {
-          return $result;
-        }
-      } else {
-        $image_result = \WPCospend\Image_Manager::save_image(
-          'member',
-          $id,
-          $avatar_type,
-          $avatar_content,
-          get_current_user_id()
-        );
-
-        if ($image_result === false) {
-          return new WP_Error(
-            'avatar_save_error',
-            __('Error updating member avatar.', 'wp-cospend'),
-            array('status' => 500)
-          );
-        }
+      if (is_wp_error($result)) {
+        return $result;
       }
     }
 
@@ -695,12 +678,12 @@ class Member_Controller extends WP_REST_Controller {
           'description' => __('The type of avatar (url, file or icon).', 'wp-cospend'),
           'type' => 'string',
           'enum' => array('url', 'file', 'icon'),
-          'required' => true,
+          'required' => false,
         ),
         'avatar_content' => array(
           'description' => __('The avatar content (URL or icon name).', 'wp-cospend'),
           'type' => 'string',
-          'required' => true,
+          'required' => false,
         ),
         'avatar' => array(
           'description' => __('The member avatar object.', 'wp-cospend'),

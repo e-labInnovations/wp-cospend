@@ -415,4 +415,47 @@ class Image_Manager {
       );
     }
   }
+
+  /**
+   * Save avatar.
+   *
+   * @param string $avatar_type The avatar type (file, icon)
+   * @param string $avatar_content The avatar content (URL, icon name)
+   * @param string $entity_id The entity ID
+   * @param string $entity_type The entity type (member)
+   * @return array|WP_Error Array with image data on success, WP_Error on failure
+   */
+  public static function save_avatar($avatar_type, $avatar_content, $entity_id, $entity_type) {
+    if (!in_array($avatar_type, array('file', 'icon'))) {
+      return new WP_Error(
+        'invalid_avatar_type',
+        __('Avatar type must be either "file" or "icon".', 'wp-cospend'),
+        array('status' => 400)
+      );
+    }
+
+    // Handle file upload if avatar_file is provided
+    if (isset($_FILES['avatar_file'])) {
+      $result = self::handle_file_upload($entity_type, $entity_id, 'avatar_file', get_current_user_id());
+      if (is_wp_error($result)) {
+        return $result;
+      }
+    } else {
+      $image_result = self::save_image(
+        $entity_type,
+        $entity_id,
+        $avatar_type,
+        $avatar_content,
+        get_current_user_id()
+      );
+
+      if ($image_result === false) {
+        return new WP_Error(
+          'avatar_save_error',
+          __('Error updating member avatar.', 'wp-cospend'),
+          array('status' => 500)
+        );
+      }
+    }
+  }
 }
