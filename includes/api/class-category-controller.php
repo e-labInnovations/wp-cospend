@@ -154,8 +154,8 @@ class Category_Controller extends WP_REST_Controller {
       return true;
     }
 
-    // Regular users can only access categories they created
-    return $category && (int)$category->created_by === get_current_user_id();
+    // Regular users can only access categories they created or are the default categories
+    return $category && ((int)$category->created_by === get_current_user_id() || (int)$category->created_by === 0);
   }
 
   /**
@@ -165,7 +165,19 @@ class Category_Controller extends WP_REST_Controller {
    * @return WP_Error|bool
    */
   public function update_item_permissions_check($request) {
-    return $this->get_item_permissions_check($request);
+    if (!is_user_logged_in()) {
+      return false;
+    }
+
+    $category = \WPCospend\Category_Manager::get_category($request->get_param('id'));
+
+    // Admin can access any category
+    if (current_user_can('manage_options')) {
+      return true;
+    }
+
+    // Regular users can only modify categories they created
+    return $category && (int)$category->created_by === get_current_user_id();
   }
 
   /**
@@ -175,7 +187,19 @@ class Category_Controller extends WP_REST_Controller {
    * @return WP_Error|bool
    */
   public function delete_item_permissions_check($request) {
-    return $this->get_item_permissions_check($request);
+    if (!is_user_logged_in()) {
+      return false;
+    }
+
+    $category = \WPCospend\Category_Manager::get_category($request->get_param('id'));
+
+    // Admin can access any category
+    if (current_user_can('manage_options')) {
+      return true;
+    }
+
+    // Regular users can only delete categories they created
+    return $category && (int)$category->created_by === get_current_user_id();
   }
 
   /**
@@ -247,9 +271,9 @@ class Category_Controller extends WP_REST_Controller {
   public function create_item($request) {
     $params = $request->get_params();
     $name = sanitize_text_field($params['name']);
-    $color = sanitize_text_field($params['color']);
+    $color = sanitize_text_field($params['color']) ?? '#FFFFFF';
     $parent_id = isset($params['parent_id']) ? intval($params['parent_id']) : null;
-    $icon_type = sanitize_text_field($params['icon_type']);
+    $icon_type = isset($params['icon_type']) ? sanitize_text_field($params['icon_type']) : null;
     $icon_content = isset($params['icon_content']) ? sanitize_text_field($params['icon_content']) : null;
 
     // Validate required fields
@@ -260,8 +284,6 @@ class Category_Controller extends WP_REST_Controller {
         array('status' => 400)
       );
     }
-
-    $color = empty($color) ? '#FFFFFF' : $color;
 
     if (empty($color)) {
       return new WP_Error(
@@ -291,13 +313,14 @@ class Category_Controller extends WP_REST_Controller {
         );
       }
 
-      if ((int)$parent->created_by !== get_current_user_id() && !current_user_can('manage_options')) {
-        return new WP_Error(
-          'permission_denied',
-          __('You do not have permission to create a subcategory in this category.', 'wp-cospend'),
-          array('status' => 403)
-        );
-      }
+      // currenly we allow users to create subcategories in any category
+      // if ((int)$parent->created_by !== get_current_user_id() && !current_user_can('manage_options')) {
+      //   return new WP_Error(
+      //     'permission_denied',
+      //     __('You do not have permission to create a subcategory in this category.', 'wp-cospend'),
+      //     array('status' => 403)
+      //   );
+      // }
 
       if ($parent->parent_id) {
         return new WP_Error(
@@ -342,12 +365,8 @@ class Category_Controller extends WP_REST_Controller {
       get_current_user_id()
     );
 
-    if ($category_id === false) {
-      return new WP_Error(
-        'db_error',
-        __('Error creating category.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    if (is_wp_error($category_id)) {
+      return $category_id;
     }
 
     // Handle icon

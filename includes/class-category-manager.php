@@ -2,6 +2,8 @@
 
 namespace WPCospend;
 
+use WP_Error;
+
 class Category_Manager {
   /**
    * Initialize the category manager.
@@ -31,7 +33,7 @@ class Category_Manager {
    * @param int $parent_id Parent category ID (optional)
    * @param int $created_by User ID who created this category
    * @param string $icon Icon name (optional)
-   * @return int|false The category ID if created, false otherwise
+   * @return int|WP_Error The category ID if created, WP_Error otherwise
    */
   public static function create_category($name, $color, $parent_id, $created_by) {
     global $wpdb;
@@ -46,7 +48,11 @@ class Category_Manager {
     ));
 
     if ($existing) {
-      return false;
+      return new WP_Error(
+        'category_exists',
+        __('A category with the same name already exists under the same parent.', 'wp-cospend'),
+        array('status' => 400)
+      );
     }
 
     $result = $wpdb->insert(
@@ -63,7 +69,11 @@ class Category_Manager {
     );
 
     if (!$result) {
-      return false;
+      return new WP_Error(
+        'db_error',
+        __('Error creating category.', 'wp-cospend'),
+        array('status' => 500)
+      );
     }
 
     $category_id = $wpdb->insert_id;

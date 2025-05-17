@@ -252,7 +252,7 @@ content-type: application/json
 
 {
   "name": "Test Category 01",
-  "parent_id": 21,
+  "parent_id": 1,
   "color": "#00FF00",
   "icon_type": "icon",
   "icon_content": "rocket"
@@ -263,41 +263,41 @@ content-type: application/json
 # create category (with icon file upload)
 POST {{base_url}}/wp-json/wp-cospend/v1/categories
 Authorization: Basic {{username}}:{{password}}
-content-type: multipart/form-data; boundary=----WebKitFormBoundary
+content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
-------WebKitFormBoundary
+------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="name"
 
 Test Category 02
-------WebKitFormBoundary
-Content-Disposition: form-data; name="icon_type"
-
-file
-------WebKitFormBoundary
+------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="parent_id"
 
 21
-------WebKitFormBoundary
+------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="color"
 
-#FF0000
-------WebKitFormBoundary
+#00FF00
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="icon_type"
+
+file
+------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="icon_file"; filename="avatar01.png"
 Content-Type: image/png
 
 < docs/images/avatar01.png
-------WebKitFormBoundary--
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ###
 
 ## get category by id
-GET {{base_url}}/wp-json/wp-cospend/v1/categories/23
+GET {{base_url}}/wp-json/wp-cospend/v1/categories/24
 Authorization: Basic {{username}}:{{password}}
 
 ###
 
 # update category
-POST {{base_url}}/wp-json/wp-cospend/v1/categories/21
+POST {{base_url}}/wp-json/wp-cospend/v1/categories/24
 Authorization: Basic {{username}}:{{password}}
 content-type: application/json
 
@@ -306,7 +306,7 @@ content-type: application/json
 }
 
 ### update category (with icon file upload)
-POST {{base_url}}/wp-json/wp-cospend/v1/categories/21
+POST {{base_url}}/wp-json/wp-cospend/v1/categories/24
 Authorization: Basic {{username}}:{{password}}
 content-type: multipart/form-data; boundary=----WebKitFormBoundary
 
@@ -324,5 +324,14 @@ Content-Type: image/png
 ###
 
 # delete category
-DELETE {{base_url}}/wp-json/wp-cospend/v1/categories/23
+DELETE {{base_url}}/wp-json/wp-cospend/v1/categories/24
 Authorization: Basic {{username}}:{{password}}
+
+###
+
+# get child categories
+GET {{base_url}}/wp-json/wp-cospend/v1/categories/1/children
+Authorization: Basic {{username}}:{{password}}
+
+###
+
