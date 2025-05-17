@@ -59,6 +59,12 @@ class Member_Manager {
         Image_Manager::save_image('member', $member_id, 'url', $avatar_url, $user_id);
       }
     }
+
+    // Set default currency to INR if not already set
+    $current_currency = get_user_meta($user_id, 'cospend_default_currency', true);
+    if (empty($current_currency)) {
+      update_user_meta($user_id, 'cospend_default_currency', 'INR');
+    }
   }
 
   /**
@@ -109,6 +115,12 @@ class Member_Manager {
   public static function create_members_for_existing_users() {
     $users = get_users();
     foreach ($users as $user) {
+      // Set default currency to INR if not already set
+      $current_currency = get_user_meta($user->ID, 'cospend_default_currency', true);
+      if (empty($current_currency)) {
+        update_user_meta($user->ID, 'cospend_default_currency', 'INR');
+      }
+
       self::create_member_for_user($user->ID);
     }
   }

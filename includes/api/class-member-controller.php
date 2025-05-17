@@ -208,6 +208,25 @@ class Member_Controller extends WP_REST_Controller {
     // Add avatar to response
     $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
 
+    // Add WordPress user details if linked
+    if ($member->wp_user_id) {
+      $user = get_userdata($member->wp_user_id);
+      if ($user) {
+        $member->wp_user = array(
+          'id' => $user->ID,
+          'username' => $user->user_login,
+          'email' => $user->user_email,
+          'display_name' => $user->display_name,
+          'first_name' => $user->first_name,
+          'last_name' => $user->last_name,
+          'nickname' => $user->nickname,
+          'roles' => $user->roles,
+          'avatar_url' => get_avatar_url($user->ID, array('size' => 96)),
+          'default_currency' => get_user_meta($user->ID, 'cospend_default_currency', true) ?: 'INR'
+        );
+      }
+    }
+
     return rest_ensure_response($member);
   }
 
@@ -233,9 +252,28 @@ class Member_Controller extends WP_REST_Controller {
       );
     }
 
-    // Add avatars to response
+    // Add avatars and WordPress user details to response
     foreach ($members as $member) {
       $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
+
+      // Add WordPress user details if linked
+      if ($member->wp_user_id) {
+        $user = get_userdata($member->wp_user_id);
+        if ($user) {
+          $member->wp_user = array(
+            'id' => $user->ID,
+            'username' => $user->user_login,
+            'email' => $user->user_email,
+            'display_name' => $user->display_name,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'nickname' => $user->nickname,
+            'roles' => $user->roles,
+            'avatar_url' => get_avatar_url($user->ID, array('size' => 96)),
+            'default_currency' => get_user_meta($user->ID, 'cospend_default_currency', true) ?: 'INR'
+          );
+        }
+      }
     }
 
     return rest_ensure_response($members);
@@ -265,9 +303,28 @@ class Member_Controller extends WP_REST_Controller {
       );
     }
 
-    // Add avatars to response
+    // Add avatars and WordPress user details to response
     foreach ($members as $member) {
       $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
+
+      // Add WordPress user details if linked
+      if ($member->wp_user_id) {
+        $user = get_userdata($member->wp_user_id);
+        if ($user) {
+          $member->wp_user = array(
+            'id' => $user->ID,
+            'username' => $user->user_login,
+            'email' => $user->user_email,
+            'display_name' => $user->display_name,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'nickname' => $user->nickname,
+            'roles' => $user->roles,
+            'avatar_url' => get_avatar_url($user->ID, array('size' => 96)),
+            'default_currency' => get_user_meta($user->ID, 'cospend_default_currency', true) ?: 'INR'
+          );
+        }
+      }
     }
 
     return rest_ensure_response($members);
@@ -299,6 +356,25 @@ class Member_Controller extends WP_REST_Controller {
 
     // Add avatar to response
     $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
+
+    // Add WordPress user details if linked
+    if ($member->wp_user_id) {
+      $user = get_userdata($member->wp_user_id);
+      if ($user) {
+        $member->wp_user = array(
+          'id' => $user->ID,
+          'username' => $user->user_login,
+          'email' => $user->user_email,
+          'display_name' => $user->display_name,
+          'first_name' => $user->first_name,
+          'last_name' => $user->last_name,
+          'nickname' => $user->nickname,
+          'roles' => $user->roles,
+          'avatar_url' => get_avatar_url($user->ID, array('size' => 96)),
+          'default_currency' => get_user_meta($user->ID, 'cospend_default_currency', true) ?: 'INR'
+        );
+      }
+    }
 
     return rest_ensure_response($member);
   }

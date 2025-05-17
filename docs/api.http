@@ -12,7 +12,7 @@ Authorization: Basic {{username}}:{{password}}
 
 ###
 
-# get current cospend member
+# get me; cospend profile
 GET {{base_url}}/wp-json/wp-cospend/v1/members/me
 Authorization: Basic {{username}}:{{password}}
 
@@ -38,6 +38,12 @@ content-type: application/json
 {
   "name": "Test User 02"
 }
+
+###
+
+# get member by id
+GET {{base_url}}/wp-json/wp-cospend/v1/members/3
+Authorization: Basic {{username}}:{{password}}
 
 ###
 
