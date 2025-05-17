@@ -44,6 +44,10 @@ class Image_Manager {
       );
     }
 
+    if (!$image) {
+      return null;
+    }
+
     return array(
       'id' => $image->id,
       'type' => $image->type,

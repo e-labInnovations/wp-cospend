@@ -88,3 +88,15 @@ Content-Type: image/png
 < docs/images/avatar01.png
 ------WebKitFormBoundary--
 
+
+###
+
+# get user by email
+GET {{base_url}}/wp-json/wp-cospend/v1/members/user-by-email
+Authorization: Basic {{username}}:{{password}}
+content-type: application/json
+
+{
+  "email": "admin@elabins.com"
+}
+

@@ -45,6 +45,27 @@ class Member_Controller extends WP_REST_Controller {
       )
     );
 
+    // Get user by email route
+    register_rest_route(
+      $this->namespace,
+      '/' . $this->rest_base . '/user-by-email',
+      array(
+        array(
+          'methods' => WP_REST_Server::READABLE,
+          'callback' => array($this, 'get_user_by_email'),
+          'permission_callback' => array($this, 'get_items_permissions_check'),
+          'args' => array(
+            'email' => array(
+              'description' => __('Email address to search for.', 'wp-cospend'),
+              'type' => 'string',
+              'required' => true,
+              'format' => 'email',
+            ),
+          ),
+        ),
+      )
+    );
+
     // Regular user routes
     register_rest_route(
       $this->namespace,
@@ -282,14 +303,8 @@ class Member_Controller extends WP_REST_Controller {
     // Add avatars and WordPress user details to response
     require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
     foreach ($members as $member) {
-      $avatar = \WPCospend\Image_Manager::get_image('member', $member->id, 'url');
-      if (!$avatar) {
-        $avatar = \WPCospend\Image_Manager::get_image('member', $member->id, 'icon');
-      }
-
-      if ($avatar) {
-        $member->avatar = $avatar;
-      }
+      // Add avatar to response
+      $member->avatar = \WPCospend\Member_Manager::get_member_avatar($member->id);
 
       // Add WordPress user details if linked
       $member->wp_user = \WPCospend\Member_Manager::get_member_wp_user($member->wp_user_id);
@@ -687,6 +702,76 @@ class Member_Controller extends WP_REST_Controller {
           'type' => 'string',
           'required' => true,
         ),
+        'avatar' => array(
+          'description' => __('The member avatar object.', 'wp-cospend'),
+          'type' => 'object',
+          'properties' => array(
+            'id' => array(
+              'description' => __('Unique identifier for the avatar.', 'wp-cospend'),
+              'type' => 'integer',
+            ),
+            'type' => array(
+              'description' => __('The type of avatar (url or icon).', 'wp-cospend'),
+              'type' => 'string',
+              'enum' => array('url', 'icon'),
+            ),
+            'content' => array(
+              'description' => __('The avatar content (URL or icon name).', 'wp-cospend'),
+              'type' => 'string',
+            ),
+          ),
+          'readonly' => true,
+        ),
+        'wp_user' => array(
+          'description' => __('The WordPress user details if linked.', 'wp-cospend'),
+          'type' => 'object',
+          'properties' => array(
+            'id' => array(
+              'description' => __('WordPress user ID.', 'wp-cospend'),
+              'type' => 'integer',
+            ),
+            'username' => array(
+              'description' => __('WordPress username.', 'wp-cospend'),
+              'type' => 'string',
+            ),
+            'email' => array(
+              'description' => __('WordPress user email.', 'wp-cospend'),
+              'type' => 'string',
+            ),
+            'display_name' => array(
+              'description' => __('WordPress user display name.', 'wp-cospend'),
+              'type' => 'string',
+            ),
+            'avatar_url' => array(
+              'description' => __('WordPress user avatar URL.', 'wp-cospend'),
+              'type' => 'string',
+            ),
+            'default_currency' => array(
+              'description' => __('The default currency for the member.', 'wp-cospend'),
+              'type' => 'string',
+            ),
+            'roles' => array(
+              'description' => __('The roles of the WordPress user.', 'wp-cospend'),
+              'type' => 'array',
+              'items' => array(
+                'type' => 'string',
+              ),
+            ),
+            'first_name' => array(
+              'description' => __('The first name of the WordPress user.', 'wp-cospend'),
+              'type' => 'string',
+            ),
+            'last_name' => array(
+              'description' => __('The last name of the WordPress user.', 'wp-cospend'),
+              'type' => 'string',
+            ),
+            'nickname' => array(
+              'description' => __('The nickname of the WordPress user.', 'wp-cospend'),
+              'type' => 'string',
+            ),
+          ),
+          'readonly' => true,
+        ),
         'created_by' => array(
           'description' => __('The ID of the user who created this member.', 'wp-cospend'),
           'type' => 'integer',
@@ -706,5 +791,36 @@ class Member_Controller extends WP_REST_Controller {
         ),
       ),
     );
+  }
+
+  /**
+   * Get WordPress user by email.
+   *
+   * @param WP_REST_Request $request Full data about the request.
+   * @return WP_Error|WP_REST_Response
+   */
+  public function get_user_by_email($request) {
+    $email = sanitize_email($request->get_param('email'));
+
+    if (!is_email($email)) {
+      return new WP_Error(
+        'invalid_email',
+        __('Invalid email address.', 'wp-cospend'),
+        array('status' => 400)
+      );
+    }
+
+    $user = get_user_by('email', $email);
+    if (!$user) {
+      return new WP_Error(
+        'user_not_found',
+        __('User not found.', 'wp-cospend'),
+        array('status' => 404)
+      );
+    }
+
+    $user_data = \WPCospend\Member_Manager::get_member_wp_user($user->ID);
+
+    return rest_ensure_response($user_data);
   }
 }
