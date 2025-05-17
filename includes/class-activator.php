@@ -128,7 +128,7 @@ class Activator {
             id bigint(20) NOT NULL AUTO_INCREMENT,
             entity_type enum('member', 'category', 'tag', 'group') NOT NULL,
             entity_id bigint(20) NOT NULL,
-            type enum('url', 'icon', 'svg') NOT NULL,
+            type enum('url', 'icon') NOT NULL,
             content text NOT NULL,
             created_by bigint(20) NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,

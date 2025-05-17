@@ -68,6 +68,10 @@ function wp_cospend_init() {
   require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-group-manager.php';
   WPCospend\Group_Manager::init();
 
+  // Initialize category manager
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-category-manager.php';
+  WPCospend\Category_Manager::init();
+
   // Initialize image manager
   require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
   WPCospend\Image_Manager::init();
@@ -88,6 +92,11 @@ function wp_cospend_register_rest_routes() {
   require_once WP_COSPEND_PLUGIN_DIR . 'includes/api/class-group-controller.php';
   $group_controller = new WPCospend\API\Group_Controller();
   $group_controller->register_routes();
+
+  // Category endpoints
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/api/class-category-controller.php';
+  $category_controller = new WPCospend\API\Category_Controller();
+  $category_controller->register_routes();
 }
 
 // Add plugin settings link

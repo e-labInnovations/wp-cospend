@@ -22,7 +22,7 @@ class Image_Manager {
    *
    * @param string $entity_type The entity type (category, tag, member)
    * @param int $entity_id The entity ID
-   * @param string $type The image type (url, icon, svg)
+   * @param string $type The image type (url, icon)
    * @return array|null The image data or null if not found
    */
   public static function get_image($entity_type, $entity_id, $type = 'icon', $minimum_data = true) {
@@ -36,16 +36,16 @@ class Image_Manager {
       $type
     ));
 
+    if (!$image) {
+      return null;
+    }
+
     if ($minimum_data) {
       return array(
         'id' => $image->id,
         'type' => $image->type,
         'content' => $image->content,
       );
-    }
-
-    if (!$image) {
-      return null;
     }
 
     return array(
@@ -59,12 +59,68 @@ class Image_Manager {
   }
 
   /**
+   * Save icon image for an entity like category and tag.
+   *
+   * @param string $entity_type The entity type (category, tag, member)
+   * @param int $entity_id The entity ID
+   * @param string $type The image type (url, icon)
+   * @param string $content The image content (file content, icon name)
+   * @param int $created_by The user ID who created this image
+   * @return int|false The image ID if created, false otherwise
+   */
+  public static function save_icon_image($entity_type, $entity_id, $type, $content, $created_by) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_images';
+
+    // Check if image already exists
+    $existing = $wpdb->get_var($wpdb->prepare(
+      "SELECT id FROM $table_name WHERE entity_type = %s AND entity_id = %d",
+      $entity_type,
+      $entity_id
+    ));
+
+    if ($existing) {
+      // Update existing image
+      $result = $wpdb->update(
+        $table_name,
+        array(
+          'content' => $content,
+        ),
+        array(
+          'entity_type' => $entity_type,
+          'entity_id' => $entity_id,
+          'type' => $type,
+        ),
+        array('%s', '%d', '%s'),
+        array('%s', '%d', '%s')
+      );
+
+      return $result !== false ? $existing : false;
+    } else {
+      // Insert new image
+      $result = $wpdb->insert(
+        $table_name,
+        array(
+          'entity_type' => $entity_type,
+          'entity_id' => $entity_id,
+          'type' => $type,
+          'content' => $content,
+          'created_by' => $created_by,
+        ),
+        array('%s', '%d', '%s', '%s', '%d', '%s', '%s')
+      );
+
+      return $result ? $wpdb->insert_id : false;
+    }
+  }
+
+  /**
    * Save image for an entity.
    *
    * @param string $entity_type The entity type (category, tag, member)
    * @param int $entity_id The entity ID
-   * @param string $type The image type (url, icon, svg)
-   * @param string $content The image content (URL, icon name, or SVG markup)
+   * @param string $type The image type (url, icon)
+   * @param string $content The image content (file content, icon name)
    * @param int $created_by The user ID who created this image
    * @return int|false The image ID if created, false otherwise
    */
@@ -123,7 +179,7 @@ class Image_Manager {
    *
    * @param string $entity_type The entity type (category, tag, member)
    * @param int $entity_id The entity ID
-   * @param string $type The image type (url, icon, svg)
+   * @param string $type The image type (url, icon)
    * @return bool True if deleted, false otherwise
    */
   public static function delete_image($entity_type, $entity_id, $type) {
@@ -161,7 +217,7 @@ class Image_Manager {
       wp_send_json_error('Invalid entity type');
     }
 
-    if (!in_array($type, array('url', 'icon', 'svg'))) {
+    if (!in_array($type, array('url', 'icon'))) {
       wp_send_json_error('Invalid image type');
     }
 
@@ -210,7 +266,7 @@ class Image_Manager {
       wp_send_json_error('Invalid entity type');
     }
 
-    if (!in_array($type, array('url', 'icon', 'svg'))) {
+    if (!in_array($type, array('url', 'icon'))) {
       wp_send_json_error('Invalid image type');
     }
 
@@ -277,6 +333,136 @@ class Image_Manager {
     }
 
     return null;
+  }
+
+  /**
+   * Handle icon file upload and save.
+   *
+   * @param string $entity_type The entity type (category, tag, member)
+   * @param int $entity_id The entity ID
+   * @param string $file_key The key in $_FILES array
+   * @param int $created_by The user ID who created this image
+   * @return array|WP_Error Array with image data on success, WP_Error on failure
+   */
+  public static function handle_icon_upload($entity_type, $entity_id, $file_key, $created_by) {
+    if (!isset($_FILES[$file_key])) {
+      return new \WP_Error(
+        'no_file',
+        __('No file uploaded.', 'wp-cospend'),
+        array('status' => 400)
+      );
+    }
+
+    // Validate file
+    $error = self::validate_file($_FILES[$file_key]);
+    if (is_wp_error($error)) {
+      return $error;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_images';
+
+    // Check if image already exists
+    $existing = $wpdb->get_row($wpdb->prepare(
+      "SELECT * FROM $table_name WHERE entity_type = %s AND entity_id = %d",
+      $entity_type,
+      $entity_id
+    ));
+
+    // Get file extension
+    $file_type = wp_check_filetype($_FILES[$file_key]['name']);
+    $extension = $file_type['ext'];
+    $timestamp = time();
+
+    if ($existing) {
+      // Update existing image
+      $file_name = $existing->id . '-' . $timestamp . '.' . $extension;
+      $file_path = self::get_upload_dir() . '/' . $file_name;
+
+      if (!move_uploaded_file($_FILES[$file_key]['tmp_name'], $file_path)) {
+        return new \WP_Error(
+          'upload_error',
+          __('Failed to save uploaded file.', 'wp-cospend'),
+          array('status' => 500)
+        );
+      }
+
+      // Update image record
+      $file_url = self::get_upload_url() . '/' . $file_name;
+      $wpdb->update(
+        $table_name,
+        array(
+          'content' => $file_url,
+          'type' => 'url',
+        ),
+        array('id' => $existing->id),
+        array('%s', '%s'),
+        array('%d')
+      );
+
+      return array(
+        'id' => $existing->id,
+        'type' => 'url',
+        'content' => $file_url
+      );
+    } else {
+      // Create new image record
+      $wpdb->insert(
+        $table_name,
+        array(
+          'entity_type' => $entity_type,
+          'entity_id' => $entity_id,
+          'type' => 'url',
+          'content' => '', // Will be updated after file save
+          'created_by' => $created_by,
+          'created_at' => current_time('mysql'),
+          'updated_at' => current_time('mysql'),
+        ),
+        array('%s', '%d', '%s', '%s', '%d', '%s', '%s')
+      );
+
+      $image_id = $wpdb->insert_id;
+      if (!$image_id) {
+        return new \WP_Error(
+          'db_error',
+          __('Failed to create image record.', 'wp-cospend'),
+          array('status' => 500)
+        );
+      }
+
+      // Save new file
+      $file_name = $image_id . '-' . $timestamp . '.' . $extension;
+      $file_path = self::get_upload_dir() . '/' . $file_name;
+
+      if (!move_uploaded_file($_FILES[$file_key]['tmp_name'], $file_path)) {
+        // Rollback image record if file move fails
+        $wpdb->delete($table_name, array('id' => $image_id), array('%d'));
+        return new \WP_Error(
+          'upload_error',
+          __('Failed to save uploaded file.', 'wp-cospend'),
+          array('status' => 500)
+        );
+      }
+
+      // Update image record with URL
+      $file_url = self::get_upload_url() . '/' . $file_name;
+      $wpdb->update(
+        $table_name,
+        array(
+          'content' => $file_url,
+          'updated_at' => current_time('mysql'),
+        ),
+        array('id' => $image_id),
+        array('%s', '%s'),
+        array('%d')
+      );
+
+      return array(
+        'id' => $image_id,
+        'type' => 'url',
+        'content' => $file_url
+      );
+    }
   }
 
   /**
@@ -454,7 +640,7 @@ class Image_Manager {
       if ($image_result === false) {
         return new WP_Error(
           'avatar_save_error',
-          __('Error updating member avatar.', 'wp-cospend'),
+          __('Error updating avatar.', 'wp-cospend'),
           array('status' => 500)
         );
       }
@@ -464,11 +650,58 @@ class Image_Manager {
   }
 
   /**
-   * Get avatar URL.
+   * Save avatar.
+   *
+   * @param string $avatar_type The avatar type (file, icon)
+   * @param string $avatar_content The avatar content (URL, icon name)
+   * @param string $entity_id The entity ID
+   * @param string $entity_type The entity type (member)
+   * @return array|WP_Error Array with image data on success, WP_Error on failure
+   */
+  public static function save_icon($icon_type, $icon_content, $entity_id, $entity_type) {
+    if (!in_array($icon_type, array('file', 'icon'))) {
+      return new WP_Error(
+        'invalid_icon_type',
+        __('Icon type must be either "file" or "icon".', 'wp-cospend'),
+        array('status' => 400)
+      );
+    }
+
+    // Handle file upload if avatar_file is provided
+    if (isset($_FILES['icon_file'])) {
+      $result = self::handle_icon_upload($entity_type, $entity_id, 'icon_file', get_current_user_id());
+      if (is_wp_error($result)) {
+        return $result;
+      }
+
+      return $result;
+    } else {
+      $image_result = self::save_icon_image(
+        $entity_type,
+        $entity_id,
+        $icon_type,
+        $icon_content,
+        get_current_user_id()
+      );
+
+      if ($image_result === false) {
+        return new WP_Error(
+          'icon_save_error',
+          __('Error updating icon.', 'wp-cospend'),
+          array('status' => 500)
+        );
+      }
+
+      return $image_result;
+    }
+  }
+
+  /**
+   * Get avatar for an entity like member or group.
    *
    * @param string $entity_id Entity ID
    * @param string $entity_type Entity type
-   * @return string|null Avatar URL or null if not found
+   * @return array|null Avatar data or null if not found
    */
   public static function get_avatar($entity_id, $entity_type) {
     $avatar_with_url = self::get_image($entity_type, $entity_id, 'url', false);
@@ -493,5 +726,45 @@ class Image_Manager {
       'type' => $avatar["type"],
       'content' => $avatar["content"],
     ) : null;
+  }
+
+  /**
+   * Get icon for an entity like category and tag.
+   *
+   * @param string $entity_id Entity ID
+   * @param string $entity_type Entity type
+   * @param bool $minimum_data Whether to return only minimum data
+   * @return array|null Icon data or null if not found
+   */
+  public static function get_icon($entity_id, $entity_type, $minimum_data = true) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_images';
+
+    $image = $wpdb->get_row($wpdb->prepare(
+      "SELECT * FROM $table_name WHERE entity_type = %s AND entity_id = %d",
+      $entity_type,
+      $entity_id
+    ));
+
+    if (!$image) {
+      return null;
+    }
+
+    if ($minimum_data) {
+      return array(
+        'id' => $image->id,
+        'type' => $image->type,
+        'content' => $image->content,
+      );
+    }
+
+    return array(
+      'id' => $image->id,
+      'type' => $image->type,
+      'content' => $image->content,
+      'updated_at' => $image->updated_at,
+      'created_at' => $image->created_at,
+      'created_by' => $image->created_by,
+    );
   }
 }
