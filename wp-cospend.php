@@ -88,6 +88,10 @@ function wp_cospend_init() {
   require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-transaction-manager.php';
   WPCospend\Transaction_Manager::init();
 
+  // Initialize tag manager
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-tags-manager.php';
+  WPCospend\Tags_Manager::init();
+
   // Initialize REST API
   add_action('rest_api_init', 'wp_cospend_register_rest_routes');
 }
@@ -119,6 +123,11 @@ function wp_cospend_register_rest_routes() {
   require_once WP_COSPEND_PLUGIN_DIR . 'includes/api/class-transaction-controller.php';
   $transaction_controller = new WPCospend\API\Transaction_Controller();
   $transaction_controller->register_routes();
+
+  // Tag endpoints
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/api/class-tag-controller.php';
+  $tag_controller = new WPCospend\API\Tag_Controller();
+  $tag_controller->register_routes();
 }
 
 // Add plugin settings link

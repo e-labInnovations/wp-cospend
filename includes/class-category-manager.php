@@ -83,7 +83,7 @@ class Category_Manager {
     $icon = Image_Manager::get_image(ImageEntityType::Category, $category_id, ImageReturnType::Minimum);
 
     if (is_wp_error($icon)) {
-      return self::get_error('db_error');
+      return $icon;
     }
 
     return $icon;
@@ -133,7 +133,7 @@ class Category_Manager {
 
     // Check if category with same name already exists
     $existing = $wpdb->get_var($wpdb->prepare(
-      "SELECT id FROM $table_name WHERE name = %s AND created_by = %d AND parent_id " . ($parent_id ? "= %d" : "IS NULL"),
+      "SELECT id FROM $table_name WHERE name = %s AND (created_by = %d OR created_by = 0) AND parent_id " . ($parent_id ? "= %d" : "IS NULL"),
       $name,
       $created_by,
       $parent_id
@@ -209,7 +209,11 @@ class Category_Manager {
       array('%d')
     );
 
-    return $result !== false;
+    if (!$result) {
+      return self::get_error('db_error');
+    }
+
+    return $category_id;
   }
 
   /**

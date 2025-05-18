@@ -386,11 +386,7 @@ class Category_Controller extends WP_REST_Controller {
     if (isset($params['color'])) {
       $color = sanitize_text_field($params['color']);
       if (!preg_match('/^#[a-f0-9]{6}$/i', $color)) {
-        return new WP_Error(
-          'invalid_color',
-          __('Invalid color format. Use hex color code (e.g. #FF0000).', 'wp-cospend'),
-          array('status' => 400)
-        );
+        return Category_Manager::get_error('invalid_color_format');
       }
       $update_data['color'] = $color;
     }
@@ -434,7 +430,7 @@ class Category_Controller extends WP_REST_Controller {
 
     $result = Category_Manager::update_category($category_id, $update_data);
 
-    if (is_wp_error($result)) {
+    if (is_wp_error($result) && $result->get_error_code() !== 'no_changes') {
       return $result;
     }
 
@@ -455,11 +451,6 @@ class Category_Controller extends WP_REST_Controller {
     $category = Category_Manager::get_category($category_id);
     if (is_wp_error($category)) {
       return $category;
-    }
-
-    // Check if user has permission to delete category
-    if ((int)$category['created_by'] !== get_current_user_id() && !current_user_can('manage_options')) {
-      return Category_Manager::get_error('no_permissions');
     }
 
     $result = Category_Manager::delete_category($category_id);

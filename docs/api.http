@@ -353,3 +353,87 @@ Authorization: Basic {{username}}:{{password}}
 
 ###
 
+# get all tags
+GET {{base_url}}/wp-json/wp-cospend/v1/tags
+Authorization: Basic {{username}}:{{password}}
+
+###
+
+# create tag
+POST {{base_url}}/wp-json/wp-cospend/v1/tags
+Authorization: Basic {{username}}:{{password}}
+content-type: application/json
+
+{
+  "name": "Test Tag 01",
+  "color": "#FF0000",
+  "icon_type": "icon",
+  "icon_content": "tag"
+}
+
+###
+
+# create tag (with icon file upload)
+POST {{base_url}}/wp-json/wp-cospend/v1/tags
+Authorization: Basic {{username}}:{{password}}
+content-type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="name"
+
+Test Tag 02
+------WebKitFormBoundary
+Content-Disposition: form-data; name="color"
+
+#00FF00
+------WebKitFormBoundary
+Content-Disposition: form-data; name="icon_type"
+
+file
+------WebKitFormBoundary
+Content-Disposition: form-data; name="icon_file"; filename="avatar01.png"
+Content-Type: image/png
+
+< docs/images/avatar01.png
+------WebKitFormBoundary--
+
+###
+
+# get tag by id
+GET {{base_url}}/wp-json/wp-cospend/v1/tags/6
+Authorization: Basic {{username}}:{{password}}
+
+###
+
+# update tag
+POST {{base_url}}/wp-json/wp-cospend/v1/tags/7
+Authorization: Basic {{username}}:{{password}}
+content-type: application/json
+
+{
+  "name": "Test Tag 01 - updated"
+}
+
+###
+
+# update tag (with icon file upload)
+POST {{base_url}}/wp-json/wp-cospend/v1/tags/7
+Authorization: Basic {{username}}:{{password}}
+content-type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="icon_type"
+
+file
+------WebKitFormBoundary
+Content-Disposition: form-data; name="icon_file"; filename="avatar01.png"
+Content-Type: image/png
+
+< docs/images/avatar01.png
+------WebKitFormBoundary--
+
+###
+
+# delete tag
+DELETE {{base_url}}/wp-json/wp-cospend/v1/tags/5
+Authorization: Basic {{username}}:{{password}}
