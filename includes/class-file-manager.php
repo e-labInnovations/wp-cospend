@@ -66,7 +66,7 @@ class File_Manager {
    */
   public static function get_upload_dir($type = 'images') {
     $upload_dir = wp_upload_dir();
-    $cospend_dir = $upload_dir['basedir'] . '/cospend//' . $type;
+    $cospend_dir = $upload_dir['basedir'] . '/cospend' . '/' . $type;
 
     // Create directory if it doesn't exist
     if (!file_exists($cospend_dir)) {
@@ -84,7 +84,7 @@ class File_Manager {
    */
   public static function get_upload_url($type = 'images') {
     $upload_dir = wp_upload_dir();
-    return $upload_dir['baseurl'] . '/cospend//' . $type;
+    return $upload_dir['baseurl'] . '/cospend' . '/' . $type;
   }
 
   /**
