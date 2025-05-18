@@ -60,6 +60,18 @@ function wp_cospend_init() {
   // Load plugin text domain
   load_plugin_textdomain('wp-cospend', false, dirname(plugin_basename(__FILE__)) . '/languages');
 
+  // Initialize file manager
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-file-manager.php';
+  WPCospend\File_Manager::init();
+
+  // Initialize image manager
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
+  WPCospend\Image_Manager::init();
+
+  // Initialize account manager
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-account-manager.php';
+  WPCospend\Account_Manager::init();
+
   // Initialize member manager
   require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-member-manager.php';
   WPCospend\Member_Manager::init();
@@ -72,9 +84,9 @@ function wp_cospend_init() {
   require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-category-manager.php';
   WPCospend\Category_Manager::init();
 
-  // Initialize image manager
-  require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-  WPCospend\Image_Manager::init();
+  // Initialize transaction manager
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-transaction-manager.php';
+  WPCospend\Transaction_Manager::init();
 
   // Initialize REST API
   add_action('rest_api_init', 'wp_cospend_register_rest_routes');
@@ -83,6 +95,11 @@ add_action('plugins_loaded', 'wp_cospend_init');
 
 // Register REST API routes
 function wp_cospend_register_rest_routes() {
+  // Account endpoints
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/api/class-account-controller.php';
+  $account_controller = new WPCospend\API\Account_Controller();
+  $account_controller->register_routes();
+
   // Member endpoints
   require_once WP_COSPEND_PLUGIN_DIR . 'includes/api/class-member-controller.php';
   $member_controller = new WPCospend\API\Member_Controller();
@@ -97,6 +114,11 @@ function wp_cospend_register_rest_routes() {
   require_once WP_COSPEND_PLUGIN_DIR . 'includes/api/class-category-controller.php';
   $category_controller = new WPCospend\API\Category_Controller();
   $category_controller->register_routes();
+
+  // Transaction endpoints
+  require_once WP_COSPEND_PLUGIN_DIR . 'includes/api/class-transaction-controller.php';
+  $transaction_controller = new WPCospend\API\Transaction_Controller();
+  $transaction_controller->register_routes();
 }
 
 // Add plugin settings link

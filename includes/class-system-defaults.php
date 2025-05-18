@@ -11,7 +11,7 @@ class System_Defaults {
   /**
    * Default categories with parent-child relationships
    */
-  const DEFAULT_CATEGORIES = array(
+  const DEFAULT_EXPENSE_CATEGORIES = array(
     // Parent categories
     array(
       'name' => 'Food & Dining',
@@ -146,7 +146,7 @@ class System_Defaults {
         array(
           'name' => 'Sports',
           'color' => '#E5BDBD',
-          'icon' => 'football',
+          'icon' => 'volleyball',
         ),
       ),
     ),
@@ -159,11 +159,6 @@ class System_Defaults {
           'name' => 'Medical',
           'color' => '#B07CC7',
           'icon' => 'stethoscope',
-        ),
-        array(
-          'name' => 'Dental',
-          'color' => '#B07CC7',
-          'icon' => 'tooth',
         ),
         array(
           'name' => 'Pharmacy',
@@ -190,7 +185,7 @@ class System_Defaults {
         array(
           'name' => 'Courses',
           'color' => '#5DABE3',
-          'icon' => 'chalkboard',
+          'icon' => 'notebook-pen',
         ),
       ),
     ),
@@ -229,7 +224,7 @@ class System_Defaults {
         array(
           'name' => 'Holiday',
           'color' => '#EC6B5D',
-          'icon' => 'holiday',
+          'icon' => 'tent-tree',
         ),
         array(
           'name' => 'Special Occasion',
@@ -259,6 +254,76 @@ class System_Defaults {
           'icon' => 'umbrella',
         ),
       ),
+    ),
+    array(
+      'name' => 'Other',
+      'color' => '#95A5A6',
+      'icon' => 'more-horizontal',
+      'children' => array(),
+    ),
+  );
+
+  /**
+   * Default income categories
+   */
+  const DEFAULT_INCOME_CATEGORIES = array(
+    array(
+      'name' => 'Work',
+      'color' => '#2ECC71',
+      'icon' => 'briefcase',
+      'children' =>
+      array(
+        array(
+          'name' => 'Salary',
+          'color' => '#2ECC71',
+          'icon' => 'dollar-sign',
+        ),
+        array(
+          'name' => 'Bonus',
+          'color' => '#2ECC71',
+          'icon' => 'gem',
+        ),
+        array(
+          'name' => 'Gifts',
+          'color' => '#2ECC71',
+          'icon' => 'gift',
+        ),
+        array(
+          'name' => 'Other',
+          'color' => '#95A5A6',
+          'icon' => 'more-horizontal',
+        ),
+      ),
+    ),
+    array(
+      'name' => 'Other',
+      'color' => '#95A5A6',
+      'icon' => 'more-horizontal',
+      'children' => array(),
+    ),
+  );
+
+  /**
+   * Default transfer categories
+   */
+  const DEFAULT_TRANSFER_CATEGORIES = array(
+    array(
+      'name' => 'Bank',
+      'color' => '#2ECC71',
+      'icon' => 'banknote-arrow-up',
+      'children' => array(),
+    ),
+    array(
+      'name' => 'ATM',
+      'color' => '#2ECC71',
+      'icon' => 'banknote-arrow-down',
+      'children' => array(),
+    ),
+    array(
+      'name' => 'CDM',
+      'color' => '#2ECC71',
+      'icon' => 'coins',
+      'children' => array(),
     ),
     array(
       'name' => 'Other',
@@ -316,116 +381,24 @@ class System_Defaults {
     $images_table = $wpdb->prefix . 'cospend_images';
 
     $default_categories = array(
-      array(
-        'name' => __('Food & Dining', 'wp-cospend'),
-        'color' => '#FF6B6B',
-        'icon' => 'utensils',
-        'children' => array(
-          array(
-            'name' => __('Dining Out', 'wp-cospend'),
-            'color' => '#FF8E8E',
-            'icon' => 'utensils',
-          ),
-          array(
-            'name' => __('Groceries', 'wp-cospend'),
-            'color' => '#FF8E8E',
-            'icon' => 'shopping-basket',
-          ),
-          array(
-            'name' => __('Coffee & Snacks', 'wp-cospend'),
-            'color' => '#FF8E8E',
-            'icon' => 'coffee',
-          ),
-        ),
-      ),
-      array(
-        'name' => __('Transportation', 'wp-cospend'),
-        'color' => '#45B7D1',
-        'icon' => 'car',
-        'children' => array(
-          array(
-            'name' => __('Fuel', 'wp-cospend'),
-            'color' => '#67C5DB',
-            'icon' => 'fuel',
-          ),
-          array(
-            'name' => __('Public Transit', 'wp-cospend'),
-            'color' => '#67C5DB',
-            'icon' => 'bus',
-          ),
-          array(
-            'name' => __('Maintenance', 'wp-cospend'),
-            'color' => '#67C5DB',
-            'icon' => 'wrench',
-          ),
-        ),
-      ),
-      array(
-        'name' => __('Housing', 'wp-cospend'),
-        'color' => '#96CEB4',
-        'icon' => 'home',
-        'children' => array(
-          array(
-            'name' => __('Rent', 'wp-cospend'),
-            'color' => '#B1D9C3',
-            'icon' => 'key',
-          ),
-          array(
-            'name' => __('Mortgage', 'wp-cospend'),
-            'color' => '#B1D9C3',
-            'icon' => 'home',
-          ),
-          array(
-            'name' => __('Maintenance', 'wp-cospend'),
-            'color' => '#B1D9C3',
-            'icon' => 'hammer',
-          ),
-        ),
-      ),
-      array(
-        'name' => __('Utilities', 'wp-cospend'),
-        'color' => '#FFEEAD',
-        'icon' => 'zap',
-        'children' => array(
-          array(
-            'name' => __('Electricity', 'wp-cospend'),
-            'color' => '#FFF0C0',
-            'icon' => 'zap',
-          ),
-          array(
-            'name' => __('Water', 'wp-cospend'),
-            'color' => '#FFF0C0',
-            'icon' => 'droplet',
-          ),
-          array(
-            'name' => __('Internet', 'wp-cospend'),
-            'color' => '#FFF0C0',
-            'icon' => 'wifi',
-          ),
-        ),
-      ),
-      array(
-        'name' => __('Entertainment', 'wp-cospend'),
-        'color' => '#D4A5A5',
-        'icon' => 'film',
-        'children' => array(
-          array(
-            'name' => __('Movies', 'wp-cospend'),
-            'color' => '#E5BDBD',
-            'icon' => 'film',
-          ),
-          array(
-            'name' => __('Games', 'wp-cospend'),
-            'color' => '#E5BDBD',
-            'icon' => 'gamepad-2',
-          ),
-          array(
-            'name' => __('Music', 'wp-cospend'),
-            'color' => '#E5BDBD',
-            'icon' => 'music',
-          ),
-        ),
-      ),
+      ...array_map(function ($category) {
+        return array(
+          ...$category,
+          'type' => 'expense',
+        );
+      }, self::DEFAULT_EXPENSE_CATEGORIES),
+      ...array_map(function ($category) {
+        return array(
+          ...$category,
+          'type' => 'income',
+        );
+      }, self::DEFAULT_INCOME_CATEGORIES),
+      ...array_map(function ($category) {
+        return array(
+          ...$category,
+          'type' => 'transfer',
+        );
+      }, self::DEFAULT_TRANSFER_CATEGORIES),
     );
 
     foreach ($default_categories as $category) {
@@ -445,11 +418,10 @@ class System_Defaults {
           array(
             'name' => $category['name'],
             'color' => $category['color'],
+            'type' => $category['type'],
             'created_by' => self::SYSTEM_USER_ID,
-            'created_at' => current_time('mysql'),
-            'updated_at' => current_time('mysql'),
           ),
-          array('%s', '%s', '%d', '%s', '%s')
+          array('%s', '%s', '%s', '%d')
         );
 
         $parent_id = $wpdb->insert_id;
@@ -471,7 +443,8 @@ class System_Defaults {
       }
 
       // Create child categories
-      foreach ($category['children'] as $child) {
+      $children = is_array($category['children']) ? $category['children'] : array();
+      foreach ($children as $child) {
         // Check if child category already exists
         $existing_child = $wpdb->get_var($wpdb->prepare(
           "SELECT id FROM $categories_table WHERE name = %s AND created_by = %d AND parent_id = %d",
@@ -492,10 +465,9 @@ class System_Defaults {
             'name' => $child['name'],
             'color' => $child['color'],
             'created_by' => self::SYSTEM_USER_ID,
-            'created_at' => current_time('mysql'),
-            'updated_at' => current_time('mysql'),
+            'type' => $category['type'],
           ),
-          array('%d', '%s', '%s', '%d', '%s', '%s')
+          array('%d', '%s', '%s', '%d', '%s')
         );
 
         $child_id = $wpdb->insert_id;
@@ -509,10 +481,8 @@ class System_Defaults {
             'type' => 'icon',
             'content' => $child['icon'],
             'created_by' => self::SYSTEM_USER_ID,
-            'created_at' => current_time('mysql'),
-            'updated_at' => current_time('mysql'),
           ),
-          array('%s', '%d', '%s', '%s', '%d', '%s', '%s')
+          array('%s', '%d', '%s', '%s', '%d')
         );
       }
     }
@@ -526,33 +496,7 @@ class System_Defaults {
     $tags_table = $wpdb->prefix . 'cospend_tags';
     $images_table = $wpdb->prefix . 'cospend_images';
 
-    $default_tags = array(
-      array(
-        'name' => __('Regular', 'wp-cospend'),
-        'color' => '#808080',
-        'icon' => 'circle',
-      ),
-      array(
-        'name' => __('Urgent', 'wp-cospend'),
-        'color' => '#FF0000',
-        'icon' => 'alert-circle',
-      ),
-      array(
-        'name' => __('Important', 'wp-cospend'),
-        'color' => '#FFA500',
-        'icon' => 'star',
-      ),
-      array(
-        'name' => __('Recurring', 'wp-cospend'),
-        'color' => '#3498DB',
-        'icon' => 'repeat',
-      ),
-      array(
-        'name' => __('Personal', 'wp-cospend'),
-        'color' => '#2ECC71',
-        'icon' => 'user',
-      ),
-    );
+    $default_tags = self::DEFAULT_TAGS;
 
     foreach ($default_tags as $tag) {
       // Check if tag already exists
@@ -573,10 +517,8 @@ class System_Defaults {
           'name' => $tag['name'],
           'color' => $tag['color'],
           'created_by' => self::SYSTEM_USER_ID,
-          'created_at' => current_time('mysql'),
-          'updated_at' => current_time('mysql'),
         ),
-        array('%s', '%s', '%d', '%s', '%s')
+        array('%s', '%s', '%d')
       );
 
       $tag_id = $wpdb->insert_id;
@@ -590,47 +532,9 @@ class System_Defaults {
           'type' => 'icon',
           'content' => $tag['icon'],
           'created_by' => self::SYSTEM_USER_ID,
-          'created_at' => current_time('mysql'),
-          'updated_at' => current_time('mysql'),
         ),
-        array('%s', '%d', '%s', '%s', '%d', '%s', '%s')
+        array('%s', '%d', '%s', '%s', '%d')
       );
     }
-  }
-
-  /**
-   * Check if a category is a system default.
-   *
-   * @param int $category_id Category ID to check
-   * @return bool True if it's a system category
-   */
-  public static function is_system_category($category_id) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_categories';
-
-    $created_by = $wpdb->get_var($wpdb->prepare(
-      "SELECT created_by FROM $table_name WHERE id = %d",
-      $category_id
-    ));
-
-    return $created_by === self::SYSTEM_USER_ID;
-  }
-
-  /**
-   * Check if a tag is a system default.
-   *
-   * @param int $tag_id Tag ID to check
-   * @return bool True if it's a system tag
-   */
-  public static function is_system_tag($tag_id) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_tags';
-
-    $created_by = $wpdb->get_var($wpdb->prepare(
-      "SELECT created_by FROM $table_name WHERE id = %d",
-      $tag_id
-    ));
-
-    return $created_by === self::SYSTEM_USER_ID;
   }
 }

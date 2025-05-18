@@ -61,13 +61,13 @@ Content-Type: image/png
 ###
 
 # get member by id
-GET {{base_url}}/wp-json/wp-cospend/v1/members/3
+GET {{base_url}}/wp-json/wp-cospend/v1/members/7
 Authorization: Basic {{username}}:{{password}}
 
 ###
 
 # update member (only name)
-POST {{base_url}}/wp-json/wp-cospend/v1/members/3
+POST {{base_url}}/wp-json/wp-cospend/v1/members/7
 Authorization: Basic {{username}}:{{password}}
 content-type: application/json
 
@@ -78,7 +78,7 @@ content-type: application/json
 ###
 
 # update member (only avatar)
-POST {{base_url}}/wp-json/wp-cospend/v1/members/3
+POST {{base_url}}/wp-json/wp-cospend/v1/members/7
 Authorization: Basic {{username}}:{{password}}
 content-type: application/json
 
@@ -90,7 +90,7 @@ content-type: application/json
 ###
 
 # update member (only avatar with file upload)
-POST {{base_url}}/wp-json/wp-cospend/v1/members/3
+POST {{base_url}}/wp-json/wp-cospend/v1/members/7
 Authorization: Basic {{username}}:{{password}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
 
@@ -120,7 +120,7 @@ content-type: application/json
 ###
 
 # delete member
-DELETE {{base_url}}/wp-json/wp-cospend/v1/members/9
+DELETE {{base_url}}/wp-json/wp-cospend/v1/members/6
 Authorization: Basic {{username}}:{{password}}
 
 ###
@@ -179,7 +179,7 @@ Authorization: Basic {{username}}:{{password}}
 ###
 
 # update group
-POST {{base_url}}/wp-json/wp-cospend/v1/groups/2
+POST {{base_url}}/wp-json/wp-cospend/v1/groups/3
 Authorization: Basic {{username}}:{{password}}
 content-type: application/json
 
@@ -188,7 +188,7 @@ content-type: application/json
 }
 
 ### update group (with avatar file upload)
-POST {{base_url}}/wp-json/wp-cospend/v1/groups/2
+POST {{base_url}}/wp-json/wp-cospend/v1/groups/3
 Authorization: Basic {{username}}:{{password}}
 content-type: multipart/form-data; boundary=----WebKitFormBoundary
 
@@ -202,6 +202,12 @@ Content-Type: image/png
 
 < docs/images/avatar01.png
 ------WebKitFormBoundary--
+
+###
+
+# delete group
+DELETE {{base_url}}/wp-json/wp-cospend/v1/groups/2
+Authorization: Basic {{username}}:{{password}}
 
 ###
 
@@ -240,7 +246,8 @@ content-type: application/json
   "name": "Test Category 01",
   "icon_type": "icon",
   "color": "#FF0000",
-  "icon_content": "category-icon"
+  "icon_content": "category-icon",
+  "type": "expense"
 }
 
 ###
@@ -255,7 +262,8 @@ content-type: application/json
   "parent_id": 1,
   "color": "#00FF00",
   "icon_type": "icon",
-  "icon_content": "rocket"
+  "icon_content": "rocket",
+  "type": "expense"
 }
 
 ###
@@ -263,30 +271,34 @@ content-type: application/json
 # create category (with icon file upload)
 POST {{base_url}}/wp-json/wp-cospend/v1/categories
 Authorization: Basic {{username}}:{{password}}
-content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+content-type: multipart/form-data; boundary=----WebKitFormBoundary
 
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+------WebKitFormBoundary
 Content-Disposition: form-data; name="name"
 
 Test Category 02
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+------WebKitFormBoundary
 Content-Disposition: form-data; name="parent_id"
 
 21
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+------WebKitFormBoundary
 Content-Disposition: form-data; name="color"
 
 #00FF00
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+------WebKitFormBoundary
+Content-Disposition: form-data; name="type"
+
+expense
+------WebKitFormBoundary
 Content-Disposition: form-data; name="icon_type"
 
 file
-------WebKitFormBoundary7MA4YWxkTrZu0gW
+------WebKitFormBoundary
 Content-Disposition: form-data; name="icon_file"; filename="avatar01.png"
 Content-Type: image/png
 
 < docs/images/avatar01.png
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
+------WebKitFormBoundary--
 
 ###
 
@@ -297,7 +309,7 @@ Authorization: Basic {{username}}:{{password}}
 ###
 
 # update category
-POST {{base_url}}/wp-json/wp-cospend/v1/categories/24
+POST {{base_url}}/wp-json/wp-cospend/v1/categories/55
 Authorization: Basic {{username}}:{{password}}
 content-type: application/json
 
@@ -306,7 +318,7 @@ content-type: application/json
 }
 
 ### update category (with icon file upload)
-POST {{base_url}}/wp-json/wp-cospend/v1/categories/24
+POST {{base_url}}/wp-json/wp-cospend/v1/categories/55
 Authorization: Basic {{username}}:{{password}}
 content-type: multipart/form-data; boundary=----WebKitFormBoundary
 
@@ -324,13 +336,19 @@ Content-Type: image/png
 ###
 
 # delete category
-DELETE {{base_url}}/wp-json/wp-cospend/v1/categories/24
+DELETE {{base_url}}/wp-json/wp-cospend/v1/categories/55
 Authorization: Basic {{username}}:{{password}}
 
 ###
 
 # get child categories
 GET {{base_url}}/wp-json/wp-cospend/v1/categories/1/children
+Authorization: Basic {{username}}:{{password}}
+
+###
+
+# get all transactions
+GET {{base_url}}/wp-json/wp-cospend/v1/transactions
 Authorization: Basic {{username}}:{{password}}
 
 ###

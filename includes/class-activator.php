@@ -61,10 +61,29 @@ class Activator {
             created_by bigint(20) NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            type ENUM('income', 'expense', 'transfer') NOT NULL DEFAULT 'expense',
             PRIMARY KEY  (id),
             KEY parent_id (parent_id),
             KEY created_by (created_by),
             CONSTRAINT fk_category_parent FOREIGN KEY (parent_id) REFERENCES {$wpdb->prefix}cospend_categories(id) ON DELETE CASCADE
+        ) $charset_collate;";
+    dbDelta($sql);
+
+    // Accounts table - for tracking money between users
+    $table_name = $wpdb->prefix . 'cospend_accounts';
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            name varchar(255) NOT NULL,
+            private_name varchar(255),
+            description text,
+            created_by bigint(20) NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            is_default boolean NOT NULL DEFAULT false,
+            visibility enum('private', 'friends', 'group') NOT NULL DEFAULT 'private',
+            is_active boolean NOT NULL DEFAULT true,
+            PRIMARY KEY  (id),
+            KEY created_by (created_by)
         ) $charset_collate;";
     dbDelta($sql);
 
@@ -78,7 +97,8 @@ class Activator {
             amount decimal(10,2) NOT NULL,
             description text,
             date date NOT NULL,
-            type enum('income', 'expense') NOT NULL,
+            type enum('income', 'expense', 'transfer') NOT NULL DEFAULT 'expense',
+            transaction_type enum('group', 'p2p', 'personal') NOT NULL DEFAULT 'personal',
             created_by bigint(20) NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -98,12 +118,15 @@ class Activator {
             transaction_id bigint(20) NOT NULL,
             member_id bigint(20) NOT NULL,
             amount decimal(10,2) NOT NULL,
-            is_paid tinyint(1) NOT NULL DEFAULT 0,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            from_account_id bigint(20) NOT NULL,
+            to_account_id bigint(20),
             PRIMARY KEY  (id),
             KEY transaction_id (transaction_id),
-            KEY member_id (member_id)
+            KEY member_id (member_id),
+            KEY from_account_id (from_account_id),
+            KEY to_account_id (to_account_id)
         ) $charset_collate;";
     dbDelta($sql);
 
@@ -126,7 +149,7 @@ class Activator {
     $table_name = $wpdb->prefix . 'cospend_images';
     $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            entity_type enum('member', 'category', 'tag', 'group') NOT NULL,
+            entity_type enum('member', 'category', 'tag', 'group', 'account') NOT NULL,
             entity_id bigint(20) NOT NULL,
             type enum('url', 'icon') NOT NULL,
             content text NOT NULL,

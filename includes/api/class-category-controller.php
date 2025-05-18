@@ -5,6 +5,9 @@ namespace WPCospend\API;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_Error;
+use WPCospend\Category_Manager;
+use WPCospend\Image_Manager;
+use WPCospend\ImageEntityType;
 
 class Category_Controller extends WP_REST_Controller {
   /**
@@ -147,7 +150,10 @@ class Category_Controller extends WP_REST_Controller {
       return false;
     }
 
-    $category = \WPCospend\Category_Manager::get_category($request->get_param('id'));
+    $category = Category_Manager::get_category($request->get_param('id'));
+    if (is_wp_error($category)) {
+      return $category;
+    }
 
     // Admin can access any category
     if (current_user_can('manage_options')) {
@@ -155,7 +161,7 @@ class Category_Controller extends WP_REST_Controller {
     }
 
     // Regular users can only access categories they created or are the default categories
-    return $category && ((int)$category->created_by === get_current_user_id() || (int)$category->created_by === 0);
+    return $category && ((int)$category['created_by'] === get_current_user_id() || (int)$category['created_by'] === 0);
   }
 
   /**
@@ -169,7 +175,10 @@ class Category_Controller extends WP_REST_Controller {
       return false;
     }
 
-    $category = \WPCospend\Category_Manager::get_category($request->get_param('id'));
+    $category = Category_Manager::get_category($request->get_param('id'));
+    if (is_wp_error($category)) {
+      return $category;
+    }
 
     // Admin can access any category
     if (current_user_can('manage_options')) {
@@ -177,7 +186,7 @@ class Category_Controller extends WP_REST_Controller {
     }
 
     // Regular users can only modify categories they created
-    return $category && (int)$category->created_by === get_current_user_id();
+    return $category && (int)$category['created_by'] === get_current_user_id();
   }
 
   /**
@@ -191,7 +200,10 @@ class Category_Controller extends WP_REST_Controller {
       return false;
     }
 
-    $category = \WPCospend\Category_Manager::get_category($request->get_param('id'));
+    $category = Category_Manager::get_category($request->get_param('id'));
+    if (is_wp_error($category)) {
+      return $category;
+    }
 
     // Admin can access any category
     if (current_user_can('manage_options')) {
@@ -199,7 +211,7 @@ class Category_Controller extends WP_REST_Controller {
     }
 
     // Regular users can only delete categories they created
-    return $category && (int)$category->created_by === get_current_user_id();
+    return $category && (int)$category['created_by'] === get_current_user_id();
   }
 
   /**
@@ -209,14 +221,10 @@ class Category_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_all_items($request) {
-    $categories = \WPCospend\Category_Manager::get_all_categories();
+    $categories = Category_Manager::get_all_categories();
 
-    if ($categories === null) {
-      return new WP_Error(
-        'db_error',
-        __('Error fetching categories.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    if (is_wp_error($categories)) {
+      return $categories;
     }
 
     return rest_ensure_response($categories);
@@ -229,14 +237,10 @@ class Category_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_items($request) {
-    $categories = \WPCospend\Category_Manager::get_user_categories(get_current_user_id());
+    $categories = Category_Manager::get_user_categories(get_current_user_id());
 
-    if ($categories === null) {
-      return new WP_Error(
-        'db_error',
-        __('Error fetching categories.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    if (is_wp_error($categories)) {
+      return $categories;
     }
 
     return rest_ensure_response($categories);
@@ -249,14 +253,10 @@ class Category_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_item($request) {
-    $category = \WPCospend\Category_Manager::get_category($request->get_param('id'));
+    $category = Category_Manager::get_category($request->get_param('id'));
 
-    if ($category === null) {
-      return new WP_Error(
-        'category_not_found',
-        __('Category not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
+    if (is_wp_error($category)) {
+      return $category;
     }
 
     return rest_ensure_response($category);
@@ -275,42 +275,32 @@ class Category_Controller extends WP_REST_Controller {
     $parent_id = isset($params['parent_id']) ? intval($params['parent_id']) : null;
     $icon_type = isset($params['icon_type']) ? sanitize_text_field($params['icon_type']) : null;
     $icon_content = isset($params['icon_content']) ? sanitize_text_field($params['icon_content']) : null;
+    $type = isset($params['type']) ? sanitize_text_field($params['type']) : null;
 
     // Validate required fields
     if (empty($name)) {
-      return new WP_Error(
-        'missing_name',
-        __('Category name is required.', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Category_Manager::get_error('no_name');
     }
 
     if (empty($color)) {
-      return new WP_Error(
-        'missing_color',
-        __('Category color is required.', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Category_Manager::get_error('no_color');
     }
 
     // Validate color format
     if (!preg_match('/^#[a-f0-9]{6}$/i', $color)) {
-      return new WP_Error(
-        'invalid_color',
-        __('Invalid color format. Use hex color code (e.g. #FF0000).', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Category_Manager::get_error('invalid_color_format');
+    }
+
+    // validate category type
+    if (!in_array($type, array('expense', 'income', 'transfer'))) {
+      return Category_Manager::get_error('invalid_type');
     }
 
     // Check if parent category exists and user has access
     if ($parent_id) {
-      $parent = \WPCospend\Category_Manager::get_category($parent_id);
-      if (!$parent) {
-        return new WP_Error(
-          'parent_not_found',
-          __('Parent category not found.', 'wp-cospend'),
-          array('status' => 404)
-        );
+      $parent = Category_Manager::get_category($parent_id);
+      if (is_wp_error($parent)) {
+        return $parent;
       }
 
       // currenly we allow users to create subcategories in any category
@@ -322,43 +312,27 @@ class Category_Controller extends WP_REST_Controller {
       //   );
       // }
 
-      if ($parent->parent_id) {
-        return new WP_Error(
-          'parent_is_subcategory',
-          __('Parent category is a subcategory. Only top level categories can be selected as parent.', 'wp-cospend'),
-          array('status' => 400)
-        );
+      if ($parent['parent_id']) {
+        return Category_Manager::get_error('parent_is_subcategory');
       }
     }
 
     // check if icon_type is valid
     if ($icon_type !== null && !in_array($icon_type, array('file', 'icon'))) {
-      return new WP_Error(
-        'invalid_icon_type',
-        __('Icon type must be either "file" or "icon".', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Category_Manager::get_error('invalid_icon_type');
     }
 
     // check if icon_content is valid for icon type
     if ($icon_type === 'icon' && empty($icon_content)) {
-      return new WP_Error(
-        'invalid_icon_content',
-        __('Icon content is required for icon type.', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Category_Manager::get_error('invalid_icon_content');
     }
 
     // check if icon_content is valid for file type
     if ($icon_type === 'file' && !isset($_FILES['icon_file'])) {
-      return new WP_Error(
-        'invalid_icon_content',
-        __('Icon file is required for file type.', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Category_Manager::get_error('invalid_icon_content');
     }
 
-    $category_id = \WPCospend\Category_Manager::create_category(
+    $category_id = Category_Manager::create_category(
       $name,
       $color,
       $parent_id,
@@ -370,19 +344,17 @@ class Category_Controller extends WP_REST_Controller {
     }
 
     // Handle icon
-    require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-    $icon_result = \WPCospend\Image_Manager::save_icon(
-      $icon_type,
-      $icon_content,
-      $category_id,
-      'category'
-    );
-
-    if (is_wp_error($icon_result)) {
-      return $icon_result;
+    if ($icon_type === 'file') {
+      $icon_id = Image_Manager::save_image_file(ImageEntityType::Category, $category_id, 'icon_file');
+    } else {
+      $icon_id = Image_Manager::save_image_icon(ImageEntityType::Category, $category_id, $icon_content);
     }
 
-    $category = \WPCospend\Category_Manager::get_category($category_id);
+    if (is_wp_error($icon_id)) {
+      return $icon_id;
+    }
+
+    $category = Category_Manager::get_category($category_id);
     return rest_ensure_response($category);
   }
 
@@ -397,22 +369,9 @@ class Category_Controller extends WP_REST_Controller {
     $params = $request->get_params();
 
     // Check if category exists
-    $category = \WPCospend\Category_Manager::get_category($category_id);
-    if ($category === null) {
-      return new WP_Error(
-        'category_not_found',
-        __('Category not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
-    }
-
-    // Check if user has permission to update category
-    if ((int)$category->created_by !== get_current_user_id() && !current_user_can('manage_options')) {
-      return new WP_Error(
-        'permission_denied',
-        __('You do not have permission to update this category.', 'wp-cospend'),
-        array('status' => 403)
-      );
+    $category = Category_Manager::get_category($category_id);
+    if (is_wp_error($category)) {
+      return $category;
     }
 
     $icon_type = isset($params['icon_type']) ? sanitize_text_field($params['icon_type']) : null;
@@ -436,78 +395,50 @@ class Category_Controller extends WP_REST_Controller {
       $update_data['color'] = $color;
     }
 
+    // validate category type if provided
+    if (isset($params['type'])) {
+      $type = sanitize_text_field($params['type']);
+      if (!in_array($type, array('expense', 'income', 'transfer'))) {
+        return Category_Manager::get_error('invalid_type');
+      }
+      $update_data['type'] = $type;
+    }
+
     if (isset($params['parent_id'])) {
       $parent_id = intval($params['parent_id']);
       if ($parent_id) {
-        $parent = \WPCospend\Category_Manager::get_category($parent_id);
-        if (!$parent) {
-          return new WP_Error(
-            'parent_not_found',
-            __('Parent category not found.', 'wp-cospend'),
-            array('status' => 404)
-          );
+        $parent = Category_Manager::get_category($parent_id);
+        if (is_wp_error($parent)) {
+          return $parent;
         }
 
-        if ((int)$parent->created_by !== get_current_user_id() && !current_user_can('manage_options')) {
-          return new WP_Error(
-            'permission_denied',
-            __('You do not have permission to move this category to the selected parent.', 'wp-cospend'),
-            array('status' => 403)
-          );
+        if (((int)$parent['created_by'] !== get_current_user_id() || (int)$parent['created_by'] === 0) && !current_user_can('manage_options')) {
+          return Category_Manager::get_error('no_permissions');
         }
 
-        if ($parent->parent_id) {
-          return new WP_Error(
-            'parent_is_subcategory',
-            __('Parent category is a subcategory. Only top level categories can be selected as parent.', 'wp-cospend'),
-            array('status' => 400)
-          );
+        if ($parent['parent_id']) {
+          return Category_Manager::get_error('parent_is_subcategory');
         }
       }
       $update_data['parent_id'] = $parent_id;
     }
 
-    if (isset($params['icon'])) {
-      $update_data['icon'] = sanitize_text_field($params['icon']);
-    }
-
-    // Will handle this later (otherwise the icon won't be updated)
-    $update_data['updated_at'] = current_time('mysql');
-
-    if (empty($update_data)) {
-      return new WP_Error(
-        'no_data',
-        __('No data provided for update.', 'wp-cospend'),
-        array('status' => 400)
-      );
-    }
-
-    $result = \WPCospend\Category_Manager::update_category($category_id, $update_data);
-
-    if ($result === false) {
-      return new WP_Error(
-        'db_error',
-        __('Error updating category.', 'wp-cospend'),
-        array('status' => 500)
-      );
-    }
-
     // Handle icon
     if ($icon_type !== null && ($icon_content !== null || isset($_FILES['icon_file']))) {
-      require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-      $result = \WPCospend\Image_Manager::save_icon(
-        $icon_type,
-        $icon_content,
-        $category_id,
-        'category'
-      );
+      $result = Image_Manager::save_image_file(ImageEntityType::Category, $category_id, 'icon_file');
 
       if (is_wp_error($result)) {
         return $result;
       }
     }
 
-    $category = \WPCospend\Category_Manager::get_category($category_id);
+    $result = Category_Manager::update_category($category_id, $update_data);
+
+    if (is_wp_error($result)) {
+      return $result;
+    }
+
+    $category = Category_Manager::get_category($category_id);
     return rest_ensure_response($category);
   }
 
@@ -521,32 +452,20 @@ class Category_Controller extends WP_REST_Controller {
     $category_id = $request->get_param('id');
 
     // Check if category exists
-    $category = \WPCospend\Category_Manager::get_category($category_id);
-    if ($category === null) {
-      return new WP_Error(
-        'category_not_found',
-        __('Category not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
+    $category = Category_Manager::get_category($category_id);
+    if (is_wp_error($category)) {
+      return $category;
     }
 
     // Check if user has permission to delete category
-    if ((int)$category->created_by !== get_current_user_id() && !current_user_can('manage_options')) {
-      return new WP_Error(
-        'permission_denied',
-        __('You do not have permission to delete this category.', 'wp-cospend'),
-        array('status' => 403)
-      );
+    if ((int)$category['created_by'] !== get_current_user_id() && !current_user_can('manage_options')) {
+      return Category_Manager::get_error('no_permissions');
     }
 
-    $result = \WPCospend\Category_Manager::delete_category($category_id);
+    $result = Category_Manager::delete_category($category_id);
 
-    if ($result === false) {
-      return new WP_Error(
-        'db_error',
-        __('Error deleting category.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    if (is_wp_error($result)) {
+      return $result;
     }
 
     return rest_ensure_response(array(
@@ -565,23 +484,15 @@ class Category_Controller extends WP_REST_Controller {
     $parent_id = $request->get_param('id');
 
     // Check if parent category exists
-    $parent = \WPCospend\Category_Manager::get_category($parent_id);
-    if ($parent === null) {
-      return new WP_Error(
-        'category_not_found',
-        __('Parent category not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
+    $parent = Category_Manager::get_category($parent_id);
+    if (is_wp_error($parent)) {
+      return $parent;
     }
 
-    $children = \WPCospend\Category_Manager::get_child_categories($parent_id);
+    $children = Category_Manager::get_child_categories($parent_id);
 
-    if ($children === null) {
-      return new WP_Error(
-        'db_error',
-        __('Error fetching child categories.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    if (is_wp_error($children)) {
+      return $children;
     }
 
     return rest_ensure_response($children);

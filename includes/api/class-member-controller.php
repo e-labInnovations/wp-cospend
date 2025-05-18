@@ -5,6 +5,9 @@ namespace WPCospend\API;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_Error;
+use WPCospend\Member_Manager;
+use WPCospend\Image_Manager;
+use WPCospend\ImageEntityType;
 
 class Member_Controller extends WP_REST_Controller {
   /**
@@ -162,10 +165,10 @@ class Member_Controller extends WP_REST_Controller {
       return false;
     }
 
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_members';
-    $id = $request->get_param('id');
-    $user_id = get_current_user_id();
+    $member = Member_Manager::get_member($request->get_param('id'));
+    if (is_wp_error($member)) {
+      return $member;
+    }
 
     // Admin can access any member
     if (current_user_can('manage_options')) {
@@ -173,13 +176,7 @@ class Member_Controller extends WP_REST_Controller {
     }
 
     // Regular users can only access members they created
-    $member = $wpdb->get_row($wpdb->prepare(
-      "SELECT * FROM $table_name WHERE id = %d AND created_by = %d",
-      $id,
-      $user_id
-    ));
-
-    return $member !== null;
+    return (int)$member['created_by'] === get_current_user_id();
   }
 
   /**
@@ -209,28 +206,10 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_me($request) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_members';
-    $user_id = get_current_user_id();
-
-    $member = $wpdb->get_row($wpdb->prepare(
-      "SELECT * FROM $table_name WHERE wp_user_id = %d",
-      $user_id
-    ));
-
-    if ($member === null) {
-      return new WP_Error(
-        'member_not_found',
-        __('Member not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
+    $member = Member_Manager::get_member(get_current_user_id());
+    if (is_wp_error($member)) {
+      return $member;
     }
-
-    // Add avatar to response
-    $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
-
-    // Add WordPress user details if linked
-    $member->wp_user = \WPCospend\Member_Manager::get_wp_user($member->wp_user_id);
 
     return rest_ensure_response($member);
   }
@@ -242,29 +221,9 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_all_items($request) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_members';
-
-    $members = $wpdb->get_results(
-      "SELECT * FROM $table_name ORDER BY name ASC"
-    );
-
-    if ($members === null) {
-      return new WP_Error(
-        'db_error',
-        __('Error fetching members.', 'wp-cospend'),
-        array('status' => 500)
-      );
-    }
-
-    // Add avatars and WordPress user details to response
-    require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-    foreach ($members as $member) {
-      // Add avatar to response
-      $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
-
-      // Add WordPress user details if linked
-      $member->wp_user = \WPCospend\Member_Manager::get_wp_user($member->wp_user_id);
+    $members = Member_Manager::get_all_members();
+    if (is_wp_error($members)) {
+      return $members;
     }
 
     return rest_ensure_response($members);
@@ -277,31 +236,9 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_items($request) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_members';
-    $user_id = get_current_user_id();
-
-    $members = $wpdb->get_results($wpdb->prepare(
-      "SELECT * FROM $table_name WHERE created_by = %d ORDER BY name ASC",
-      $user_id
-    ));
-
-    if ($members === null) {
-      return new WP_Error(
-        'db_error',
-        __('Error fetching members.', 'wp-cospend'),
-        array('status' => 500)
-      );
-    }
-
-    // Add avatars and WordPress user details to response
-    require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-    foreach ($members as $member) {
-      // Add avatar to response
-      $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
-
-      // Add WordPress user details if linked
-      $member->wp_user = \WPCospend\Member_Manager::get_wp_user($member->wp_user_id);
+    $members = Member_Manager::get_all_members_created_by(get_current_user_id());
+    if (is_wp_error($members)) {
+      return $members;
     }
 
     return rest_ensure_response($members);
@@ -314,28 +251,10 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_item($request) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_members';
-    $id = $request->get_param('id');
-
-    $member = $wpdb->get_row($wpdb->prepare(
-      "SELECT * FROM $table_name WHERE id = %d",
-      $id
-    ));
-
-    if ($member === null) {
-      return new WP_Error(
-        'member_not_found',
-        __('Member not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
+    $member = Member_Manager::get_member($request->get_param('id'));
+    if (is_wp_error($member)) {
+      return $member;
     }
-
-    // Add avatar to response
-    $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
-
-    // Add WordPress user details if linked
-    $member->wp_user = \WPCospend\Member_Manager::get_wp_user($member->wp_user_id);
 
     return rest_ensure_response($member);
   }
@@ -358,98 +277,55 @@ class Member_Controller extends WP_REST_Controller {
 
     // Validate required fields
     if (empty($name)) {
-      return new WP_Error(
-        'missing_name',
-        __('Member name is required.', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Member_Manager::get_error('missing_name');
     }
 
     // check if avatar_type is valid
     if ($avatar_type !== null && !in_array($avatar_type, array('file', 'icon'))) {
-      return new WP_Error(
-        'invalid_avatar_type',
-        __('Avatar type must be either "file" or "icon".', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Member_Manager::get_error('invalid_avatar_type');
     }
 
     // check if avatar_content is valid for icon type
     if ($avatar_type === 'icon' && empty($avatar_content)) {
-      return new WP_Error(
-        'invalid_avatar_content',
-        __('Avatar content is required for icon type.', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Member_Manager::get_error('invalid_avatar_content');
     }
 
     // check if avatar_content is valid for file type
     if ($avatar_type === 'file' && !isset($_FILES['avatar_file'])) {
-      return new WP_Error(
-        'invalid_avatar_content',
-        __('Avatar file is required for file type.', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Member_Manager::get_error('invalid_avatar_content');
     }
 
     // Check if member with same name already exists
-    $existing = $wpdb->get_var($wpdb->prepare(
-      "SELECT id FROM $table_name WHERE name = %s AND created_by = %d",
-      $name,
-      get_current_user_id()
-    ));
+    $existing = Member_Manager::get_member_by_name($name, get_current_user_id());
 
-    if ($existing) {
-      return new WP_Error(
-        'duplicate_name',
-        __('A member with this name already exists.', 'wp-cospend'),
-        array('status' => 400)
-      );
+    if (!is_wp_error($existing)) {
+      return Member_Manager::get_error('duplicate_name');
     }
 
-    // Insert new member
-    $result = $wpdb->insert(
-      $table_name,
-      array(
-        'name' => $name,
-        'wp_user_id' => $wp_user_id,
-        'created_by' => get_current_user_id(),
-        'created_at' => current_time('mysql'),
-        'updated_at' => current_time('mysql'),
-      ),
-      array('%s', '%d', '%d', '%s', '%s')
-    );
+    $member_id = Member_Manager::create_member($name, $wp_user_id);
 
-    if ($result === false) {
-      return new WP_Error(
-        'db_error',
-        __('Error creating member.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    if (is_wp_error($member_id)) {
+      return $member_id;
     }
-
-    $member_id = $wpdb->insert_id;
 
     // Handle avatar
-    require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-    $result = \WPCospend\Image_Manager::save_avatar(
-      $avatar_type,
-      $avatar_content,
-      $member_id,
-      'member'
-    );
-
-    if (is_wp_error($result)) {
-      return $result;
+    if ($avatar_type === 'file' && isset($_FILES['avatar_file'])) {
+      $avatar_id = Image_Manager::save_image_file(ImageEntityType::Member, $member_id, 'avatar_file');
+      if (is_wp_error($avatar_id)) {
+        return $avatar_id;
+      }
+    }
+    if ($avatar_type === 'icon' && $avatar_content !== null) {
+      $avatar_id = Image_Manager::save_image_icon(ImageEntityType::Member, $member_id, $avatar_content);
+      if (is_wp_error($avatar_id)) {
+        return $avatar_id;
+      }
     }
 
-    $member = $wpdb->get_row($wpdb->prepare(
-      "SELECT * FROM $table_name WHERE id = %d",
-      $member_id
-    ));
-
-    // Add avatar to response
-    $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
+    $member = Member_Manager::get_member($member_id);
+    if (is_wp_error($member)) {
+      return $member;
+    }
 
     return rest_ensure_response($member);
   }
@@ -461,115 +337,58 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function update_item($request) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_members';
     $id = $request->get_param('id');
-
-    // Check if member exists and user has permission
-    $member = $wpdb->get_row($wpdb->prepare(
-      "SELECT * FROM $table_name WHERE id = %d",
-      $id
-    ));
-
-    if (!$member) {
-      return new WP_Error(
-        'member_not_found',
-        __('Member not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
-    }
-
-    // Only creator can update
-    if ((int)$member->created_by !== get_current_user_id() && !current_user_can('manage_options')) {
-      return new WP_Error(
-        'permission_denied',
-        __('You do not have permission to update this member.', 'wp-cospend'),
-        array('status' => 403)
-      );
-    }
-
     $params = $request->get_params();
-    $name = isset($params['name']) ? sanitize_text_field($params['name']) : null;
     $wp_user_id = isset($params['wp_user_id']) ? intval($params['wp_user_id']) : null;
+    $unlink_wp_user = isset($params['unlink_wp_user']) ? boolval($params['unlink_wp_user']) : null;
     $avatar_type = isset($params['avatar_type']) ? sanitize_text_field($params['avatar_type']) : null;
     $avatar_content = isset($params['avatar_content']) ? sanitize_text_field($params['avatar_content']) : null;
 
     // Prepare update data
     $update_data = array();
-    $update_format = array();
 
     // Add name if provided
-    if ($name !== null) {
-      // Check if another member with same name exists
-      $duplicate = $wpdb->get_var($wpdb->prepare(
-        "SELECT id FROM $table_name WHERE name = %s AND id != %d",
-        $name,
-        $id
-      ));
-
-      if ($duplicate) {
-        return new WP_Error(
-          'duplicate_name',
-          __('A member with this name already exists.', 'wp-cospend'),
-          array('status' => 400)
-        );
+    if (isset($params['name'])) {
+      $name = sanitize_text_field($params['name']);
+      $member_with_same_name = Member_Manager::get_member_by_name($name, get_current_user_id());
+      if (!is_wp_error($member_with_same_name)) {
+        return Member_Manager::get_error('duplicate_name');
       }
 
       $update_data['name'] = $name;
-      $update_format[] = '%s';
     }
 
     // Add wp_user_id if provided
-    if ($wp_user_id !== null) {
-      $update_data['wp_user_id'] = $wp_user_id;
-      $update_format[] = '%d';
-    }
-
-    // Add updated_at timestamp
-    $update_data['updated_at'] = current_time('mysql');
-    $update_format[] = '%s';
-
-    // Update member if there are changes
-    if (!empty($update_data)) {
-      $result = $wpdb->update(
-        $table_name,
-        $update_data,
-        array('id' => $id),
-        $update_format,
-        array('%d')
-      );
-
-      if ($result === false) {
-        return new WP_Error(
-          'db_error',
-          __('Error updating member.', 'wp-cospend'),
-          array('status' => 500)
-        );
-      }
+    if (isset($params['wp_user_id']) || !is_null($unlink_wp_user)) {
+      $update_data['wp_user_id'] = !is_null($unlink_wp_user) ? null : $wp_user_id;
     }
 
     // Update avatar if provided
     if ($avatar_type !== null && ($avatar_content !== null || isset($_FILES['avatar_file']))) {
-      require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-      $result = \WPCospend\Image_Manager::save_avatar(
-        $avatar_type,
-        $avatar_content,
-        $id,
-        'member'
-      );
+      if ($avatar_type === 'file' && isset($_FILES['avatar_file'])) {
+        $result = Image_Manager::save_image_file(ImageEntityType::Member, $id, 'avatar_file');
+        if (is_wp_error($result)) {
+          return $result;
+        }
+      }
 
-      if (is_wp_error($result)) {
-        return $result;
+      if ($avatar_type === 'icon' && !empty($avatar_content)) {
+        $result = Image_Manager::save_image_icon(ImageEntityType::Member, $id, $avatar_content);
+        if (is_wp_error($result)) {
+          return $result;
+        }
       }
     }
 
-    $member = $wpdb->get_row($wpdb->prepare(
-      "SELECT * FROM $table_name WHERE id = %d",
-      $id
-    ));
+    $result = Member_Manager::update_member($id, $update_data);
+    if (is_wp_error($result)) {
+      return $result;
+    }
 
-    // Add avatar to response
-    $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
+    $member = Member_Manager::get_member($id);
+    if (is_wp_error($member)) {
+      return $member;
+    }
 
     return rest_ensure_response($member);
   }
@@ -581,65 +400,46 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function delete_item($request) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'cospend_members';
     $id = $request->get_param('id');
 
     // Check if member exists
-    $existing = $wpdb->get_var($wpdb->prepare(
-      "SELECT id FROM $table_name WHERE id = %d",
-      $id
-    ));
-
-    if (!$existing) {
-      return new WP_Error(
-        'member_not_found',
-        __('Member not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
+    $existing = Member_Manager::get_member($id);
+    if (is_wp_error($existing)) {
+      return $existing;
     }
 
-    // Check if member is associated with any transactions
-    $transactions_table = $wpdb->prefix . 'cospend_transactions';
-    $splits_table = $wpdb->prefix . 'cospend_transaction_splits';
-
-    $has_transactions = $wpdb->get_var($wpdb->prepare(
-      "SELECT COUNT(*) FROM $transactions_table WHERE payer_id = %d",
-      $id
-    ));
-
-    $has_splits = $wpdb->get_var($wpdb->prepare(
-      "SELECT COUNT(*) FROM $splits_table WHERE member_id = %d",
-      $id
-    ));
-
-    if ($has_transactions > 0 || $has_splits > 0) {
-      return new WP_Error(
-        'member_in_use',
-        __('Cannot delete member because they are associated with transactions.', 'wp-cospend'),
-        array('status' => 400)
-      );
-    }
-
-    // Delete member
-    $result = $wpdb->delete(
-      $table_name,
-      array('id' => $id),
-      array('%d')
-    );
-
-    if ($result === false) {
-      return new WP_Error(
-        'db_error',
-        __('Error deleting member.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    $result = Member_Manager::delete_member($id);
+    if (is_wp_error($result)) {
+      return $result;
     }
 
     return rest_ensure_response(array(
       'message' => __('Member deleted successfully.', 'wp-cospend'),
       'id' => $id
     ));
+  }
+
+  /**
+   * Get WordPress user by email.
+   *
+   * @param WP_REST_Request $request Full data about the request.
+   * @return WP_Error|WP_REST_Response
+   */
+  public function get_user_by_email($request) {
+    $email = sanitize_email($request->get_param('email'));
+
+    if (!is_email($email)) {
+      return Member_Manager::get_error('invalid_email');
+    }
+
+    $user = get_user_by('email', $email);
+    if (!$user) {
+      return Member_Manager::get_error('user_not_found');
+    }
+
+    $user_data = Member_Manager::get_wp_user($user->ID);
+
+    return rest_ensure_response($user_data);
   }
 
   /**
@@ -768,36 +568,5 @@ class Member_Controller extends WP_REST_Controller {
         ),
       ),
     );
-  }
-
-  /**
-   * Get WordPress user by email.
-   *
-   * @param WP_REST_Request $request Full data about the request.
-   * @return WP_Error|WP_REST_Response
-   */
-  public function get_user_by_email($request) {
-    $email = sanitize_email($request->get_param('email'));
-
-    if (!is_email($email)) {
-      return new WP_Error(
-        'invalid_email',
-        __('Invalid email address.', 'wp-cospend'),
-        array('status' => 400)
-      );
-    }
-
-    $user = get_user_by('email', $email);
-    if (!$user) {
-      return new WP_Error(
-        'user_not_found',
-        __('User not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
-    }
-
-    $user_data = \WPCospend\Member_Manager::get_wp_user($user->ID);
-
-    return rest_ensure_response($user_data);
   }
 }

@@ -5,6 +5,10 @@ namespace WPCospend\API;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_Error;
+use WPCospend\Group_Manager;
+use WPCospend\Image_Manager;
+use WPCospend\ImageEntityType;
+use WPCospend\Member_Manager;
 
 class Group_Controller extends WP_REST_Controller {
   /**
@@ -184,15 +188,30 @@ class Group_Controller extends WP_REST_Controller {
       return false;
     }
 
-    $group = \WPCospend\Group_Manager::get_group($request->get_param('id'));
+    $group = Group_Manager::get_group($request->get_param('id'));
+    if (is_wp_error($group)) {
+      return $group;
+    }
+
+    $group_members = Member_Manager::get_group_members($request->get_param('id'));
+    if (is_wp_error($group_members)) {
+      return $group_members;
+    }
+
+    $is_member = false;
+    foreach ($group_members as $member) {
+      if (!is_null($member['wp_user']) && (int)$member['wp_user']['id'] === get_current_user_id()) {
+        $is_member = true;
+      }
+    }
 
     // Admin can access any group
     if (current_user_can('manage_options')) {
       return true;
     }
 
-    // Regular users can only access groups they created
-    return $group && (int)$group->created_by === get_current_user_id();
+    // Regular users can only access groups they are a member of
+    return $is_member;
   }
 
   /**
@@ -202,7 +221,18 @@ class Group_Controller extends WP_REST_Controller {
    * @return WP_Error|bool
    */
   public function update_item_permissions_check($request) {
-    return $this->get_item_permissions_check($request);
+    if (!$this->get_item_permissions_check($request)) {
+      return false;
+    }
+
+    $group_members = Member_Manager::get_group_members($request->get_param('id'));
+    $have_edit_permission = false;
+    foreach ($group_members as $member) {
+      if (!is_null($member['wp_user']) && (int)$member['wp_user']['id'] === get_current_user_id() && $member['can_edit']) {
+        $have_edit_permission = true;
+      }
+    }
+    return $have_edit_permission;
   }
 
   /**
@@ -212,7 +242,17 @@ class Group_Controller extends WP_REST_Controller {
    * @return WP_Error|bool
    */
   public function delete_item_permissions_check($request) {
-    return $this->get_item_permissions_check($request);
+    if (!is_user_logged_in()) {
+      return false;
+    }
+
+    $group = Group_Manager::get_group($request->get_param('id'));
+    if (is_wp_error($group)) {
+      return $group;
+    }
+
+    $is_admin = current_user_can('manage_options') || (int)$group['created_by'] === get_current_user_id();
+    return $is_admin;
   }
 
   /**
@@ -222,19 +262,9 @@ class Group_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_all_items($request) {
-    $groups = \WPCospend\Group_Manager::get_all_groups();
-
-    if ($groups === null) {
-      return new WP_Error(
-        'db_error',
-        __('Error fetching groups.', 'wp-cospend'),
-        array('status' => 500)
-      );
-    }
-
-    // add avatar to each group
-    foreach ($groups as $group) {
-      $group->avatar = \WPCospend\Image_Manager::get_avatar($group->id, 'group');
+    $groups = Group_Manager::get_all_groups();
+    if (is_wp_error($groups)) {
+      return $groups;
     }
 
     return rest_ensure_response($groups);
@@ -247,19 +277,9 @@ class Group_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_items($request) {
-    $groups = \WPCospend\Group_Manager::get_user_groups(get_current_user_id());
-
-    if ($groups === null) {
-      return new WP_Error(
-        'db_error',
-        __('Error fetching groups.', 'wp-cospend'),
-        array('status' => 500)
-      );
-    }
-
-    // add avatar to each group
-    foreach ($groups as $group) {
-      $group->avatar = \WPCospend\Image_Manager::get_avatar($group->id, 'group');
+    $groups = Group_Manager::get_user_groups(get_current_user_id());
+    if (is_wp_error($groups)) {
+      return $groups;
     }
 
     return rest_ensure_response($groups);
@@ -272,21 +292,17 @@ class Group_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_item($request) {
-    $group = \WPCospend\Group_Manager::get_group($request->get_param('id'));
+    $group = Group_Manager::get_group($request->get_param('id'));
 
-    if ($group === null) {
-      return new WP_Error(
-        'group_not_found',
-        __('Group not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
+    if (is_wp_error($group)) {
+      return $group;
     }
 
     return rest_ensure_response($group);
   }
 
   /**
-   * Create one group from the collection.
+   * Create one group
    *
    * @param WP_REST_Request $request Full data about the request.
    * @return WP_Error|WP_REST_Response
@@ -302,11 +318,7 @@ class Group_Controller extends WP_REST_Controller {
 
     // Validate required fields
     if (empty($name)) {
-      return new WP_Error(
-        'missing_name',
-        __('Group name is required.', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Group_Manager::get_error('no_name');
     }
 
     // if (empty($currency)) {
@@ -319,70 +331,56 @@ class Group_Controller extends WP_REST_Controller {
 
     // check if avatar_type is valid
     if ($avatar_type !== null && !in_array($avatar_type, array('file', 'icon'))) {
-      return new WP_Error(
-        'invalid_avatar_type',
-        __('Avatar type must be either "file" or "icon".', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Group_Manager::get_error('invalid_avatar_type');
     }
 
     // check if avatar_content is valid for icon type
     if ($avatar_type === 'icon' && empty($avatar_content)) {
-      return new WP_Error(
-        'invalid_avatar_content',
-        __('Avatar content is required for icon type.', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Group_Manager::get_error('invalid_avatar_content');
     }
 
     // check if avatar_content is valid for file type
     if ($avatar_type === 'file' && !isset($_FILES['avatar_file'])) {
-      return new WP_Error(
-        'invalid_avatar_content',
-        __('Avatar file is required for file type.', 'wp-cospend'),
-        array('status' => 400)
-      );
+      return Group_Manager::get_error('invalid_avatar_content');
     }
 
-    $group_id = \WPCospend\Group_Manager::create_group(
+    $group_id = Group_Manager::create_group(
       $name,
       $description,
       $currency,
       get_current_user_id(),
     );
 
-    if ($group_id === false) {
-      return new WP_Error(
-        'db_error',
-        __('Error creating group.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    if (is_wp_error($group_id)) {
+      return $group_id;
     }
 
     // add current user as member to group with can_edit = true
-    $is_added = \WPCospend\Group_Manager::add_member_to_group($group_id, get_current_user_id(), true);
-    if (!$is_added) {
-      return new WP_Error(
-        'db_error',
-        __('Error adding member to group.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    $is_added = Group_Manager::add_member_to_group($group_id, get_current_user_id(), true);
+    if (is_wp_error($is_added)) {
+      return $is_added;
     }
 
     // Handle avatar
-    require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-    $avatar_result = \WPCospend\Image_Manager::save_avatar(
-      $avatar_type,
-      $avatar_content,
-      $group_id,
-      'group'
-    );
-
-    if (is_wp_error($avatar_result)) {
-      return $avatar_result;
+    if ($avatar_type === 'file' && isset($_FILES['avatar_file'])) {
+      $result = Image_Manager::save_image_file(ImageEntityType::Group, $group_id, 'avatar_file');
+      if (is_wp_error($result)) {
+        return $result;
+      }
     }
 
-    $group = \WPCospend\Group_Manager::get_group($group_id);
+    if ($avatar_type === 'icon' && !empty($avatar_content)) {
+      $result = Image_Manager::save_image_icon(ImageEntityType::Group, $group_id, $avatar_content);
+      if (is_wp_error($result)) {
+        return $result;
+      }
+    }
+
+    $group = Group_Manager::get_group($group_id);
+    if (is_wp_error($group)) {
+      return $group;
+    }
+
     return rest_ensure_response($group);
   }
 
@@ -397,81 +395,53 @@ class Group_Controller extends WP_REST_Controller {
     $params = $request->get_params();
 
     // check if group exists
-    $group = \WPCospend\Group_Manager::get_group($group_id);
-    if ($group === null) {
-      return new WP_Error(
-        'group_not_found',
-        __('Group not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
-    }
-
-    // check if user has permission to update group
-    if ((int)$group->created_by !== get_current_user_id() && !current_user_can('manage_options')) {
-      return new WP_Error(
-        'permission_denied',
-        __('You do not have permission to update this group.', 'wp-cospend'),
-        array('status' => 403)
-      );
+    $group = Group_Manager::get_group($group_id);
+    if (is_wp_error($group)) {
+      return $group;
     }
 
     $avatar_type = isset($params['avatar_type']) ? sanitize_text_field($params['avatar_type']) : null;
     $avatar_content = isset($params['avatar_content']) ? sanitize_text_field($params['avatar_content']) : null;
 
     $update_data = array();
-    $update_format = array();
 
     if (isset($params['name'])) {
       $update_data['name'] = sanitize_text_field($params['name']);
-      $update_format[] = '%s';
     }
     if (isset($params['description'])) {
       $update_data['description'] = sanitize_text_field($params['description']);
-      $update_format[] = '%s';
     }
     if (isset($params['currency'])) {
       $update_data['currency'] = sanitize_text_field($params['currency']);
-      $update_format[] = '%s';
-    }
-
-    // Add updated_at timestamp
-    $update_data['updated_at'] = current_time('mysql');
-    $update_format[] = '%s';
-
-    if (empty($update_data)) {
-      return new WP_Error(
-        'no_data',
-        __('No data provided for update.', 'wp-cospend'),
-        array('status' => 400)
-      );
-    }
-
-    $result = \WPCospend\Group_Manager::update_group($group_id, $update_data);
-
-    if ($result === false) {
-      return new WP_Error(
-        'db_error',
-        __('Error updating group.', 'wp-cospend'),
-        array('status' => 500)
-      );
     }
 
     // Update avatar if provided
     if ($avatar_type !== null && ($avatar_content !== null || isset($_FILES['avatar_file']))) {
-      require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
-      $result = \WPCospend\Image_Manager::save_avatar(
-        $avatar_type,
-        $avatar_content,
-        $group_id,
-        'group'
-      );
+      if ($avatar_type === 'file' && isset($_FILES['avatar_file'])) {
+        $result = Image_Manager::save_image_file(ImageEntityType::Group, $group_id, file_key: 'avatar_file');
+        if (is_wp_error($result)) {
+          return $result;
+        }
+      }
 
-      if (is_wp_error($result)) {
-        return $result;
+      if ($avatar_type === 'icon' && !empty($avatar_content)) {
+        $result = Image_Manager::save_image_icon(ImageEntityType::Group, $group_id, $avatar_content);
+        if (is_wp_error($result)) {
+          return $result;
+        }
       }
     }
 
-    $group = \WPCospend\Group_Manager::get_group($group_id);
+    $result = Group_Manager::update_group($group_id, $update_data);
+    if (is_wp_error($result)) {
+      return $result;
+    }
+
+    $group = Group_Manager::get_group($group_id);
+    if (is_wp_error($group)) {
+      return $group;
+    }
+
     return rest_ensure_response($group);
   }
 
@@ -483,20 +453,131 @@ class Group_Controller extends WP_REST_Controller {
    */
   public function delete_item($request) {
     $group_id = $request->get_param('id');
-    $result = \WPCospend\Group_Manager::delete_group($group_id);
+    $result = Group_Manager::delete_group($group_id);
 
-    if ($result === false) {
-      return new WP_Error(
-        'db_error',
-        __('Error deleting group.', 'wp-cospend'),
-        array('status' => 500)
-      );
+    if (is_wp_error($result)) {
+      return $result;
     }
 
     return rest_ensure_response(array(
       'message' => __('Group deleted successfully.', 'wp-cospend'),
       'id' => $group_id
     ));
+  }
+
+  /**
+   * Get all members in a group.
+   *
+   * @param WP_REST_Request $request Full data about the request.
+   * @return WP_Error|WP_REST_Response
+   */
+  public function get_group_members($request) {
+    $group_id = $request->get_param('id');
+    $group = Group_Manager::get_group($group_id);
+    if (is_wp_error($group)) {
+      return $group;
+    }
+
+    $members = Member_Manager::get_group_members($group_id);
+    if (is_wp_error($members)) {
+      return $members;
+    }
+
+    return rest_ensure_response($members);
+  }
+
+  /**
+   * Add a member to a group.
+   *
+   * @param WP_REST_Request $request Full data about the request.
+   * @return WP_Error|WP_REST_Response
+   */
+  public function add_group_member($request) {
+    $group_id = $request->get_param('id');
+    $member_id = $request->get_param('member_id');
+
+    // Check if group exists
+    $group = Group_Manager::get_group($group_id);
+    if (is_wp_error($group)) {
+      return $group;
+    }
+
+    // Check if member exists
+    $member = Member_Manager::get_member($member_id);
+    if (is_wp_error($member)) {
+      return $member;
+    }
+
+    // Check if user has permission to add this member
+    if ((int)$member['created_by'] !== get_current_user_id() && !current_user_can('manage_options')) {
+      return Group_Manager::get_error('no_permission');
+    }
+
+    $result = Group_Manager::add_member_to_group($group_id, $member_id);
+
+    if (is_wp_error($result)) {
+      return $result;
+    }
+
+    $group_members = Member_Manager::get_group_members($group_id);
+    if (is_wp_error($group_members)) {
+      return $group_members;
+    }
+
+    return rest_ensure_response($group_members);
+  }
+
+  /**
+   * Remove a member from a group.
+   *
+   * @param WP_REST_Request $request Full data about the request.
+   * @return WP_Error|WP_REST_Response
+   */
+  public function remove_group_member($request) {
+    $group_id = $request->get_param('id');
+    $member_id = $request->get_param('member_id');
+
+    // Check if group exists
+    $group = Group_Manager::get_group($group_id);
+    if (is_wp_error($group)) {
+      return $group;
+    }
+
+    // Check if member exists
+    $member = Member_Manager::get_member($member_id);
+    if (is_wp_error($member)) {
+      return $member;
+    }
+
+    $current_group_members = Member_Manager::get_group_members($group_id);
+    if (is_wp_error($current_group_members)) {
+      return $current_group_members;
+    }
+
+    $is_current_user_have_edit_permission = false;
+    foreach ($current_group_members as $current_group_member) {
+      if (!is_null($current_group_member['wp_user']) && (int)$current_group_member['wp_user']['id'] === get_current_user_id() && $current_group_member['can_edit']) {
+        $is_current_user_have_edit_permission = true;
+      }
+    }
+
+    // Check if user has permission to remove this member
+    if (!($is_current_user_have_edit_permission || (int)$member['created_by'] !== get_current_user_id() || current_user_can('manage_options'))) {
+      return Group_Manager::get_error('no_permission');
+    }
+
+    $result = Group_Manager::remove_member_from_group($group_id, $member_id);
+
+    if (is_wp_error($result)) {
+      return $result;
+    }
+
+    $group_members = Member_Manager::get_group_members($group_id);
+    if (is_wp_error($group_members)) {
+      return $group_members;
+    }
+
+    return rest_ensure_response($group_members);
   }
 
   /**
@@ -549,143 +630,5 @@ class Group_Controller extends WP_REST_Controller {
         ),
       ),
     );
-  }
-
-  /**
-   * Get all members in a group.
-   *
-   * @param WP_REST_Request $request Full data about the request.
-   * @return WP_Error|WP_REST_Response
-   */
-  public function get_group_members($request) {
-    $group_id = $request->get_param('id');
-    $members = \WPCospend\Group_Manager::get_group_members($group_id);
-
-    if ($members === null) {
-      return new WP_Error(
-        'db_error',
-        __('Error fetching group members.', 'wp-cospend'),
-        array('status' => 500)
-      );
-    }
-
-    // Add avatars to response
-    foreach ($members as $member) {
-      $member->avatar = \WPCospend\Member_Manager::get_avatar($member->id);
-      $member->wp_user = \WPCospend\Member_Manager::get_wp_user($member->wp_user_id);
-    }
-
-    return rest_ensure_response($members);
-  }
-
-  /**
-   * Add a member to a group.
-   *
-   * @param WP_REST_Request $request Full data about the request.
-   * @return WP_Error|WP_REST_Response
-   */
-  public function add_group_member($request) {
-    $group_id = $request->get_param('id');
-    $member_id = $request->get_param('member_id');
-
-    // Check if group exists
-    $group = \WPCospend\Group_Manager::get_group($group_id);
-    if ($group === null) {
-      return new WP_Error(
-        'group_not_found',
-        __('Group not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
-    }
-
-    // Check if member exists
-    $member = \WPCospend\Member_Manager::get_member($member_id);
-    if ($member === null) {
-      return new WP_Error(
-        'member_not_found',
-        __('Member not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
-    }
-
-    // Check if user has permission to add this member
-    if ((int)$member->created_by !== get_current_user_id() && !current_user_can('manage_options')) {
-      return new WP_Error(
-        'permission_denied',
-        __('You do not have permission to add this member to this group.', 'wp-cospend'),
-        array('status' => 403)
-      );
-    }
-
-    $result = \WPCospend\Group_Manager::add_member_to_group($group_id, $member_id);
-
-    if ($result === false) {
-      return new WP_Error(
-        'db_error',
-        __('Error adding member to group.', 'wp-cospend'),
-        array('status' => 500)
-      );
-    }
-
-    return rest_ensure_response(array(
-      'message' => __('Member added to group successfully.', 'wp-cospend'),
-      'group_id' => $group_id,
-      'member_id' => $member_id
-    ));
-  }
-
-  /**
-   * Remove a member from a group.
-   *
-   * @param WP_REST_Request $request Full data about the request.
-   * @return WP_Error|WP_REST_Response
-   */
-  public function remove_group_member($request) {
-    $group_id = $request->get_param('id');
-    $member_id = $request->get_param('member_id');
-
-    // Check if group exists
-    $group = \WPCospend\Group_Manager::get_group($group_id);
-    if ($group === null) {
-      return new WP_Error(
-        'group_not_found',
-        __('Group not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
-    }
-
-    // Check if member exists
-    $member = \WPCospend\Member_Manager::get_member($member_id);
-    if ($member === null) {
-      return new WP_Error(
-        'member_not_found',
-        __('Member not found.', 'wp-cospend'),
-        array('status' => 404)
-      );
-    }
-
-    // Check if user has permission to remove this member
-    if ((int)$member->created_by !== get_current_user_id() && !current_user_can('manage_options')) {
-      return new WP_Error(
-        'permission_denied',
-        __('You do not have permission to remove this member from this group.', 'wp-cospend'),
-        array('status' => 403)
-      );
-    }
-    $result = \WPCospend\Group_Manager::remove_member_from_group($group_id, $member_id);
-
-    if ($result === false) {
-      return new WP_Error(
-        'db_error',
-        __('Error removing member from group.', 'wp-cospend'),
-        array('status' => 500)
-      );
-    }
-
-    return rest_ensure_response(array(
-      'message' => __('Member removed from group successfully.', 'wp-cospend'),
-      'group_id' => $group_id,
-      'member_id' => $member_id
-    ));
   }
 }
