@@ -33,7 +33,8 @@ content-type: application/json
 {
   "name": "Test User 001",
   "avatar_type": "icon",
-  "avatar_content": "user"
+  "avatar_content": "user",
+  "wp_user_id": 1
 }
 
 ###
