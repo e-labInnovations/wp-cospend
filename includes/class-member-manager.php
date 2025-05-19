@@ -460,4 +460,48 @@ class Member_Manager {
 
     return true;
   }
+
+  /**
+   * Check if a user is a friend of another user.
+   *
+   * @param int $user_id User ID (WP user ID)
+   * @param int $friend_id Friend ID (member ID)
+   * @return bool True if the user is a friend of the other user, false otherwise
+   */
+  public static function is_friend($user_id, $friend_id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_members';
+
+    // Format: $user_id, $friend_id, $user_id, $user_id, $friend_id
+    $sql = "SELECT COUNT(*) AS total_count
+            FROM $table_name
+            WHERE 
+                (created_by = %d AND id = %d)
+                OR
+                (
+                    wp_user_id = %d 
+                    AND created_by = (
+                        SELECT wp_user_id 
+                        FROM $table_name 
+                        WHERE created_by = %d AND id = %d
+                        LIMIT 1
+                    )
+                );";
+    $friend = $wpdb->get_var($wpdb->prepare($sql, $user_id, $friend_id, $user_id, $user_id, $friend_id));
+
+    return $friend > 0;
+  }
+
+  /**
+   * Check if a user is a group member of another user.
+   *
+   * @param int $user_id User ID (WP user ID)
+   * @param int $group_id Group ID
+   * @return bool True if the user is a group member of the other user, false otherwise
+   */
+  public static function is_group_member($user_id, $group_id) {
+    // TODO: Implement this
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_members';
+  }
 }

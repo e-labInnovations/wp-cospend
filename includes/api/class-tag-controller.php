@@ -82,7 +82,7 @@ class Tag_Controller extends WP_REST_Controller {
           'permission_callback' => array($this, 'delete_item_permissions_check'),
           'args' => array(
             'id' => array(
-              'description' => __('Unique identifier for the category.', 'wp-cospend'),
+              'description' => __('Unique identifier for the tag.', 'wp-cospend'),
               'type' => 'integer',
             ),
           ),
