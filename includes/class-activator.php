@@ -20,10 +20,22 @@ class Activator {
     global $wpdb;
     $charset_collate = $wpdb->get_charset_collate();
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    $prefix = $wpdb->prefix;
+    $table_groups = $prefix . 'cospend_groups';
+    $table_members = $prefix . 'cospend_members';
+    $table_categories = $prefix . 'cospend_categories';
+    $table_accounts = $prefix . 'cospend_accounts';
+    $table_transactions = $prefix . 'cospend_transactions';
+    $table_transaction_splits = $prefix . 'cospend_transaction_splits';
+    $table_transaction_meta = $prefix . 'cospend_transaction_meta';
+    $table_repayments = $prefix . 'cospend_repayments';
+    $table_images = $prefix . 'cospend_images';
+    $table_tags = $prefix . 'cospend_tags';
+    $table_transaction_tags = $prefix . 'cospend_transaction_tags';
+    $table_group_members = $prefix . 'cospend_group_members';
 
     // Groups table
-    $table_name = $wpdb->prefix . 'cospend_groups';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_groups (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             name varchar(255) NOT NULL,
             description text,
@@ -37,8 +49,7 @@ class Activator {
     dbDelta($sql);
 
     // Members table - generalized to support both WP users and external people
-    $table_name = $wpdb->prefix . 'cospend_members';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_members (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             wp_user_id bigint(20),
             name varchar(255) NOT NULL,
@@ -52,8 +63,7 @@ class Activator {
     dbDelta($sql);
 
     // Categories table - with parent-child support
-    $table_name = $wpdb->prefix . 'cospend_categories';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_categories (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             parent_id bigint(20),
             name varchar(255) NOT NULL,
@@ -64,14 +74,12 @@ class Activator {
             type ENUM('income', 'expense', 'transfer') NOT NULL DEFAULT 'expense',
             PRIMARY KEY  (id),
             KEY parent_id (parent_id),
-            KEY created_by (created_by),
-            CONSTRAINT fk_category_parent FOREIGN KEY (parent_id) REFERENCES {$wpdb->prefix}cospend_categories(id) ON DELETE CASCADE
+            KEY created_by (created_by)
         ) $charset_collate;";
     dbDelta($sql);
 
     // Accounts table - for tracking money between users
-    $table_name = $wpdb->prefix . 'cospend_accounts';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_accounts (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             name varchar(255) NOT NULL,
             private_name varchar(255),
@@ -82,14 +90,14 @@ class Activator {
             is_default boolean NOT NULL DEFAULT false,
             visibility enum('private', 'friends', 'group') NOT NULL DEFAULT 'private',
             is_active boolean NOT NULL DEFAULT true,
+            is_virtual boolean NOT NULL DEFAULT false,
             PRIMARY KEY  (id),
             KEY created_by (created_by)
         ) $charset_collate;";
     dbDelta($sql);
 
     // Transactions table - supports individual, group, and P2P transactions
-    $table_name = $wpdb->prefix . 'cospend_transactions';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_transactions (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             group_id bigint(20),
             payer_id bigint(20) NOT NULL,
@@ -112,15 +120,14 @@ class Activator {
     dbDelta($sql);
 
     // Transaction splits table - clean member-based tracking
-    $table_name = $wpdb->prefix . 'cospend_transaction_splits';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_transaction_splits (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             transaction_id bigint(20) NOT NULL,
             member_id bigint(20) NOT NULL,
             amount decimal(10,2) NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            from_account_id bigint(20) NOT NULL,
+            from_account_id bigint(20),
             to_account_id bigint(20),
             PRIMARY KEY  (id),
             KEY transaction_id (transaction_id),
@@ -131,8 +138,7 @@ class Activator {
     dbDelta($sql);
 
     // Transaction meta table - for additional transaction data
-    $table_name = $wpdb->prefix . 'cospend_transaction_meta';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_transaction_meta (
             meta_id bigint(20) NOT NULL AUTO_INCREMENT,
             transaction_id bigint(20) NOT NULL,
             meta_key varchar(255) NOT NULL,
@@ -141,13 +147,26 @@ class Activator {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (meta_id),
             KEY transaction_id (transaction_id),
-            KEY meta_key (meta_key(191))
+            KEY meta_key (meta_key(191)),
+            UNIQUE KEY unique_meta (transaction_id, meta_key(191))
+        ) $charset_collate;";
+    dbDelta($sql);
+
+    // Repayments table - for tracking repayments between users
+    $sql = "CREATE TABLE IF NOT EXISTS $table_repayments (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            repayment_transaction_id bigint(20) NOT NULL,
+            split_id bigint(20) NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY repayment_transaction_id (repayment_transaction_id),
+            KEY split_id (split_id)
         ) $charset_collate;";
     dbDelta($sql);
 
     // Avatars/Images table - for member, category, and tag images
-    $table_name = $wpdb->prefix . 'cospend_images';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_images (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             entity_type enum('member', 'category', 'tag', 'group', 'account') NOT NULL,
             entity_id bigint(20) NOT NULL,
@@ -157,6 +176,7 @@ class Activator {
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
+            UNIQUE KEY entity_unique (entity_type, entity_id),
             KEY entity_type (entity_type),
             KEY entity_id (entity_id),
             KEY created_by (created_by)
@@ -164,8 +184,7 @@ class Activator {
     dbDelta($sql);
 
     // Tags table
-    $table_name = $wpdb->prefix . 'cospend_tags';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_tags (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             name varchar(255) NOT NULL,
             color varchar(7) DEFAULT '#000000',
@@ -178,8 +197,7 @@ class Activator {
     dbDelta($sql);
 
     // Transaction tags table - many-to-many relationship
-    $table_name = $wpdb->prefix . 'cospend_transaction_tags';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_transaction_tags (
             transaction_id bigint(20) NOT NULL,
             tag_id bigint(20) NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -189,8 +207,7 @@ class Activator {
     dbDelta($sql);
 
     // Group members table - many-to-many relationship between groups and members
-    $table_name = $wpdb->prefix . 'cospend_group_members';
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS $table_group_members (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             group_id bigint(20) NOT NULL,
             member_id bigint(20) NOT NULL,
@@ -200,9 +217,7 @@ class Activator {
             PRIMARY KEY  (id),
             UNIQUE KEY group_member (group_id, member_id),
             KEY group_id (group_id),
-            KEY member_id (member_id),
-            CONSTRAINT fk_group_member_group FOREIGN KEY (group_id) REFERENCES {$wpdb->prefix}cospend_groups(id) ON DELETE CASCADE,
-            CONSTRAINT fk_group_member_member FOREIGN KEY (member_id) REFERENCES {$wpdb->prefix}cospend_members(id) ON DELETE CASCADE
+            KEY member_id (member_id)
         ) $charset_collate;";
     dbDelta($sql);
   }
