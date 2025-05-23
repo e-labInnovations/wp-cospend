@@ -85,14 +85,15 @@ class Activator {
             private_name varchar(255),
             description text,
             created_by bigint(20) NOT NULL,
+            member_id bigint(20) NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             is_default boolean NOT NULL DEFAULT false,
             visibility enum('private', 'friends', 'group') NOT NULL DEFAULT 'private',
             is_active boolean NOT NULL DEFAULT true,
-            is_virtual boolean NOT NULL DEFAULT false,
             PRIMARY KEY  (id),
-            KEY created_by (created_by)
+            KEY created_by (created_by),
+            KEY member_id (member_id)
         ) $charset_collate;";
     dbDelta($sql);
 

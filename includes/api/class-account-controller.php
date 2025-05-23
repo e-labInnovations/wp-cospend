@@ -9,6 +9,7 @@ use WPCospend\Account_Manager;
 use WPCospend\AccountVisibility;
 use WPCospend\Image_Manager;
 use WPCospend\ImageEntityType;
+use WPCospend\Member_Manager;
 
 class Account_Controller extends WP_REST_Controller {
   /**
@@ -315,7 +316,6 @@ class Account_Controller extends WP_REST_Controller {
     $icon_content = isset($params['icon_content']) ? sanitize_text_field($params['icon_content']) : null;
     $is_default = false;
     $is_active = true;
-    $is_virtual = false;
 
     if (empty($name)) {
       return Account_Manager::get_error('no_name');
@@ -348,7 +348,15 @@ class Account_Controller extends WP_REST_Controller {
       return Account_Manager::get_error('invalid_icon_content');
     }
 
-    $account_id = Account_Manager::create_account($name, $description, $created_by, $private_name, $is_default, $visibility, $is_active, $is_virtual);
+    $member = Member_Manager::get_current_user_member();
+    if (is_wp_error($member)) {
+      return $member;
+    }
+    $member_id = $member['id'];
+
+    $visibility_value = AccountVisibility::from($visibility);
+
+    $account_id = Account_Manager::create_account($name, $description, $created_by, $member_id, $private_name, $is_default, $visibility_value, $is_active);
 
     if (is_wp_error($account_id)) {
       return $account_id;
@@ -418,10 +426,12 @@ class Account_Controller extends WP_REST_Controller {
     }
 
     if (isset($params['visibility'])) {
-      $update_data['visibility'] = sanitize_text_field($params['visibility']);
-      if ($update_data['visibility'] !== AccountVisibility::Group->value && $update_data['visibility'] !== AccountVisibility::Friends->value && $update_data['visibility'] !== AccountVisibility::Private->value) {
+      $visibility = sanitize_text_field($params['visibility']);
+      if ($visibility !== AccountVisibility::Group->value && $visibility !== AccountVisibility::Friends->value && $visibility !== AccountVisibility::Private->value) {
         return Account_Manager::get_error('invalid_visibility');
       }
+
+      $update_data['visibility'] = AccountVisibility::from($visibility);
     }
 
     // Handle icon

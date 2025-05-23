@@ -69,14 +69,15 @@ CREATE TABLE IF NOT EXISTS cospend_accounts (
     private_name VARCHAR(255),
     description TEXT,
     created_by BIGINT(20) NOT NULL,
+    member_id BIGINT(20) NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     visibility ENUM('private', 'friends', 'group') NOT NULL DEFAULT 'private',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    is_virtual BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (id),
-    KEY created_by (created_by)
+    KEY created_by (created_by),
+    KEY member_id (member_id)
 );
 
 CREATE TABLE IF NOT EXISTS cospend_transactions (

@@ -206,7 +206,7 @@ class Member_Controller extends WP_REST_Controller {
    * @return WP_Error|WP_REST_Response
    */
   public function get_me($request) {
-    $member = Member_Manager::get_member(get_current_user_id());
+    $member = Member_Manager::get_current_user_member();
     if (is_wp_error($member)) {
       return $member;
     }

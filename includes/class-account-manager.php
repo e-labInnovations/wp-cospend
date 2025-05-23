@@ -102,10 +102,10 @@ class Account_Manager {
       'name' => $account->name,
       'description' => $account->description,
       'created_by' => $account->created_by,
+      'member_id' => $account->member_id,
       'is_default' => $account->is_default,
       'visibility' => $account->visibility,
       'is_active' => $account->is_active,
-      'is_virtual' => $account->is_virtual,
     );
 
     if ($return_type === AccountReturnType::WithIcon || $return_type === AccountReturnType::WithIconAndPrivateName || $return_type === AccountReturnType::WithAll) {
@@ -132,12 +132,12 @@ class Account_Manager {
    * @param int $created_by User ID who created this account
    * @param string $private_name Private name
    * @param bool $is_default Is default
-   * @param bool $visibility Visibility
+   * @param AccountVisibility $visibility Visibility
    * @param bool $is_active Is active
    * @param bool $is_virtual Is virtual
    * @return int|WP_Error The account ID if created, WP_Error otherwise
    */
-  public static function create_account($name, $description, $created_by, $private_name, $is_default, $visibility, $is_active, $is_virtual) {
+  public static function create_account($name, $description, $created_by, $member_id, $private_name, $is_default, AccountVisibility $visibility, $is_active) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'cospend_accounts';
 
@@ -159,13 +159,13 @@ class Account_Manager {
         'name' => $name,
         'description' => $description,
         'created_by' => $created_by,
+        'member_id' => $member_id,
         'private_name' => $private_name,
         'is_default' => $is_default,
-        'visibility' => $visibility,
+        'visibility' => $visibility->value,
         'is_active' => $is_active,
-        'is_virtual' => $is_virtual,
       ),
-      array('%s', '%s', '%d', '%s', '%d', '%d', '%d', '%d')
+      array('%s', '%s', '%d', '%d', '%s', '%d', '%s', '%d')
     );
 
     if (!$result) {
@@ -213,8 +213,8 @@ class Account_Manager {
     }
 
     if (isset($data['visibility'])) {
-      $update_data['visibility'] = $data['visibility'];
-      $update_format[] = '%d';
+      $update_data['visibility'] = $data['visibility']->value;
+      $update_format[] = '%s';
     }
 
     if (isset($data['is_active'])) {

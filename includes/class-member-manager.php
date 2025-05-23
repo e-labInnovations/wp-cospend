@@ -4,6 +4,8 @@ namespace WPCospend;
 
 use WP_Error;
 use WPCospend\Image_Manager;
+use WPCospend\Account_Manager;
+use WPCospend\AccountVisibility;
 
 enum MemberReturnType: string {
   case Minimum = 'minimum';
@@ -195,6 +197,7 @@ class Member_Manager {
    * @param string $name The member name
    * @param int $wp_user_id The WordPress user ID
    * @param int $created_by The user ID of the creator
+   * @return int|WP_Error The member ID or WP_Error if the member could not be created
    */
   public static function create_member($name, $wp_user_id, $created_by = null) {
     global $wpdb;
@@ -212,6 +215,10 @@ class Member_Manager {
 
     $member_id = $wpdb->insert_id;
 
+    if ($wpdb->last_error) {
+      return self::get_error('db_error');
+    }
+
     return $member_id;
   }
 
@@ -223,13 +230,34 @@ class Member_Manager {
   public static function create_member_for_user($user_id) {
     require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-file-manager.php';
     require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-image-manager.php';
+    require_once WP_COSPEND_PLUGIN_DIR . 'includes/class-account-manager.php';
+
+    error_log("[INFO] [MemberManager] Creating member for user " . $user_id);
 
     $user = get_userdata($user_id);
     if (!$user) {
+      error_log("[INFO] [MemberManager] User not found for ID " . $user_id . ". Cannot create member.");
       return;
     }
 
+    error_log("[INFO] [MemberManager] User found for ID " . $user_id . ". Creating member.");
+
     $member_id = self::create_member($user->display_name, $user_id, $user_id);
+    if (is_wp_error($member_id)) {
+      error_log("[ERROR] [MemberManager] Error creating member for user " . $user->display_name . ": " . $member_id->get_error_message());
+    }
+
+    $account_name = "Virtual Account - " . $user->user_login;
+    $account_description = $user->display_name . "'s Virtual Account";
+    $account_private_name = "Virtual Account";
+    $account_visibility = AccountVisibility::Group;
+
+    $account_id = Account_Manager::create_account($account_name, $account_description, 0, $member_id, $account_private_name, true, $account_visibility, true);
+    if (is_wp_error($account_id)) {
+      error_log("[ERROR] [MemberManager] Error creating virtual account for user " . $user->display_name . ": " . $account_id->get_error_message());
+    }
+
+    error_log("[INFO] [MemberManager] Virtual account created for user " . $user->display_name . ": " . $account_id);
 
     // Add user avatar as member image
     if ($member_id) {
@@ -242,11 +270,15 @@ class Member_Manager {
       }
     }
 
+    error_log("[INFO] [MemberManager] Avatar saved for user " . $user->display_name . ": " . $member_id);
+
     // Set default currency to INR if not already set
     $current_currency = get_user_meta($user_id, self::$default_currency_meta_key, true);
     if (empty($current_currency)) {
       update_user_meta($user_id, self::$default_currency_meta_key, self::$default_currency);
     }
+
+    error_log("[INFO] [MemberManager] Default currency set for user " . $user->display_name . ": " . $user_id);
   }
 
   /**
@@ -503,5 +535,24 @@ class Member_Manager {
     // TODO: Implement this
     global $wpdb;
     $table_name = $wpdb->prefix . 'cospend_members';
+  }
+
+  /**
+   * Get the current user's member.
+   *
+   * @return array|WP_Error The current user's member or WP_Error if not found
+   */
+  public static function get_current_user_member(MemberReturnType $return_type = MemberReturnType::WithAvatarAndWpUser) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'cospend_members';
+
+    $user_id = get_current_user_id();
+    $member = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE created_by = %d AND wp_user_id = %d", $user_id, $user_id));
+
+    if (!$member) {
+      return self::get_error('member_not_found');
+    }
+
+    return self::get_member_data($member, $return_type);
   }
 }
